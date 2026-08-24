@@ -1,0 +1,1 @@
+"""Synthetic SQLite data generation."""
