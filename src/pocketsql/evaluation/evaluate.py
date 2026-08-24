@@ -11,7 +11,7 @@ from pocketsql.evaluation.normalize import normalize_sql
 
 
 def evaluate(records: list[dict], predictions: list[str]) -> dict:
-    counts = defaultdict(lambda: [0, 0, 0, 0])
+    counts = defaultdict(lambda: [0, 0, 0, 0, 0])
     totals = [0, 0, 0, 0]
     for record, prediction in zip(records, predictions):
         syntactic = int(is_read_only_select(prediction))
@@ -28,7 +28,7 @@ def evaluate(records: list[dict], predictions: list[str]) -> dict:
         key = f"difficulty_{record['difficulty']}:{record['query_plan']['family']}"
         for index, value in enumerate(metrics):
             counts[key][index] += value
-        counts[key].append(1)
+        counts[key][4] += 1
     names = ("syntactically_valid", "executable", "exact_match", "execution_accuracy")
     result = {name: totals[index] / max(len(records), 1) for index, name in enumerate(names)}
     result["by_family"] = {key: {name: values[index] / values[4] for index, name in enumerate(names)} for key, values in counts.items()}

@@ -34,3 +34,19 @@ def test_tiny_model_completes_one_training_step():
     mask = mx.array([[False, False, True, True, True], [False, False, True, True, True]])
     loss = train_step(model, optim.AdamW(learning_rate=1e-3), tokens, mask)
     assert loss >= 0
+
+
+def test_resume_from_checkpoint_continues_training(tmp_path):
+    from pocketsql.training.train import train
+
+    records = [
+        {"schema_sql": "CREATE TABLE t (id INTEGER, name TEXT);", "question": f"show name {i}", "sql": f"SELECT name FROM t WHERE id = {i};"}
+        for i in range(8)
+    ]
+    config = {"seed": 1, "layers": 2, "hidden_dim": 128, "heads": 4, "ffn_dim": 512, "context_length": 256, "batch_size": 4, "grad_accum_steps": 1, "learning_rate": 5e-4, "warmup_steps": 2, "epochs": 1}
+    checkpoint_dir = tmp_path / "checkpoint"
+    _, first_losses = train(records, config, checkpoint_dir)
+    assert len(first_losses) == 2
+    config["epochs"] = 2
+    _, second_losses = train(records, config, checkpoint_dir, resume_from=checkpoint_dir)
+    assert len(second_losses) == 2

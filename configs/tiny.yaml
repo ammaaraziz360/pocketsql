@@ -5,6 +5,7 @@ heads: 4
 ffn_dim: 512
 context_length: 256
 batch_size: 4
+grad_accum_steps: 1
 learning_rate: 0.0003
 warmup_steps: 10
 epochs: 1

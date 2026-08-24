@@ -33,8 +33,10 @@ The default base config has six 384-wide layers. Use tiny for smoke tests or ove
 
 ```bash
 python -m pocketsql.training.train --config configs/tiny.yaml --data data/generated/train.jsonl --checkpoint checkpoints/tiny --overfit 32
-python -m pocketsql.training.train --config configs/base.yaml --data data/generated/train.jsonl --checkpoint checkpoints/base
+python -m pocketsql.training.train --config configs/base.yaml --data data/generated/train.jsonl --val-data data/generated/validation.jsonl --checkpoint checkpoints/base
 ```
+
+Add `--resume checkpoints/base` to continue from a saved checkpoint (model weights, optimizer state including AdamW moments, and the learning-rate schedule position are all restored). Each config supports `warmup_steps` (linear warmup then constant learning rate) and `grad_accum_steps` (micro-batches averaged before each optimizer update). Training and validation loss are printed once per epoch, and a checkpoint is saved after every epoch.
 
 Training sequences are `<bos><schema>...</schema><question>...</question><sql>...</sql><eos>`. The byte tokenizer has no unknown token; SQL-region masking excludes schema and question tokens from direct loss.
 
