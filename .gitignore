@@ -9,3 +9,4 @@ data/generated/
 checkpoints/
 *.safetensors
 .DS_Store
+.tmp/
