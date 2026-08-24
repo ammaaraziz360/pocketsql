@@ -1,0 +1,63 @@
+
+[38;5;102mInstall with[0m npx skills add <owner/repo@skill>
+
+[38;5;145mwshobson/agents@postgresql-table-design[0m [36m24K installs[0m
+[38;5;102m└ https://skills.sh/wshobson/agents/postgresql-table-design[0m
+
+[38;5;145mwshobson/agents@sql-optimization-patterns[0m [36m17.2K installs[0m
+[38;5;102m└ https://skills.sh/wshobson/agents/sql-optimization-patterns[0m
+
+[38;5;145mgithub/awesome-copilot@postgresql-optimization[0m [36m14.8K installs[0m
+[38;5;102m└ https://skills.sh/github/awesome-copilot/postgresql-optimization[0m
+
+[38;5;145mgithub/awesome-copilot@sql-optimization[0m [36m14.2K installs[0m
+[38;5;102m└ https://skills.sh/github/awesome-copilot/sql-optimization[0m
+
+[38;5;145mgithub/awesome-copilot@sql-code-review[0m [36m12.7K installs[0m
+[38;5;102m└ https://skills.sh/github/awesome-copilot/sql-code-review[0m
+
+[38;5;145mgithub/awesome-copilot@postgresql-code-review[0m [36m11.8K installs[0m
+[38;5;102m└ https://skills.sh/github/awesome-copilot/postgresql-code-review[0m
+
+[38;5;145mgoogle/skills@cloud-sql-basics[0m [36m10.2K installs[0m
+[38;5;102m└ https://skills.sh/google/skills/cloud-sql-basics[0m
+
+[38;5;145mplanetscale/database-skills@mysql[0m [36m7.2K installs[0m
+[38;5;102m└ https://skills.sh/planetscale/database-skills/mysql[0m
+
+[38;5;145mclickhouse/agent-skills@chdb-sql[0m [36m6.9K installs[0m
+[38;5;102m└ https://skills.sh/clickhouse/agent-skills/chdb-sql[0m
+
+[38;5;145mjeffallan/claude-skills@sql-pro[0m [36m5.3K installs[0m
+[38;5;102m└ https://skills.sh/jeffallan/claude-skills/sql-pro[0m
+
+[38;5;145maffaan-m/ecc@mysql-patterns[0m [36m4.6K installs[0m
+[38;5;102m└ https://skills.sh/affaan-m/ecc/mysql-patterns[0m
+
+[38;5;145manthropics/knowledge-work-plugins@sql-queries[0m [36m3.8K installs[0m
+[38;5;102m└ https://skills.sh/anthropics/knowledge-work-plugins/sql-queries[0m
+
+[38;5;145melastic/agent-skills@elasticsearch-esql[0m [36m3.3K installs[0m
+[38;5;102m└ https://skills.sh/elastic/agent-skills/elasticsearch-esql[0m
+
+[38;5;145maws/agent-toolkit-for-aws@amazon-aurora-postgresql[0m [36m2.9K installs[0m
+[38;5;102m└ https://skills.sh/aws/agent-toolkit-for-aws/amazon-aurora-postgresql[0m
+
+[38;5;145myaklang/hack-skills@sqli-sql-injection[0m [36m2.9K installs[0m
+[38;5;102m└ https://skills.sh/yaklang/hack-skills/sqli-sql-injection[0m
+
+[38;5;145mmartinholovsky/claude-skills-generator@sqlite database expert[0m [36m2.7K installs[0m
+[38;5;102m└ https://skills.sh/martinholovsky/claude-skills-generator/sqlite-database-expert[0m
+
+[38;5;145maws/agent-toolkit-for-aws@amazon-aurora-mysql[0m [36m2.7K installs[0m
+[38;5;102m└ https://skills.sh/aws/agent-toolkit-for-aws/amazon-aurora-mysql[0m
+
+[38;5;145myaklang/hack-skills@nosql-injection[0m [36m2.5K installs[0m
+[38;5;102m└ https://skills.sh/yaklang/hack-skills/nosql-injection[0m
+
+[38;5;145maws/agent-toolkit-for-aws@rds-sqlserver[0m [36m2.2K installs[0m
+[38;5;102m└ https://skills.sh/aws/agent-toolkit-for-aws/rds-sqlserver[0m
+
+[38;5;145mplanetscale/skills@planetscale-codebase-sqlcommenter-instrumentation[0m [36m782 installs[0m
+[38;5;102m└ https://skills.sh/planetscale/skills/planetscale-codebase-sqlcommenter-instrumentation[0m
+

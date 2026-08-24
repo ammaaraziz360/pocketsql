@@ -10,21 +10,30 @@ import sqlite3
 from .populate import populate
 from .query_ast import Filter, QueryPlan
 from .render_sql import render_sql
-from .schemas import Schema, make_schema
+from .schemas import STATUS_VALUES, Schema, make_schema
 from .validate import validate_sql
 from .verbalize import verbalize
+
+
+def _with_threshold(filters: tuple[Filter, ...], amount_column: str, threshold: int) -> tuple[Filter, ...]:
+    """Replace any existing filter on amount_column with a new threshold instead of stacking redundant conditions."""
+    updated = tuple(Filter(amount_column, item.operator, threshold) if item.column == amount_column else item for item in filters)
+    return updated if any(item.column == amount_column for item in filters) else updated + (Filter(amount_column, ">", threshold),)
 
 
 def plans_for(schema: Schema, count: int = 13) -> list[QueryPlan]:
     parent, child = schema.tables
     parent_id = parent.columns[0].name
+    name_column, location_column = parent.columns[1].name, parent.columns[2].name
     child_fk, amount, status = (column.name for column in child.columns[1:])
+    shipped, open_status = STATUS_VALUES[0], STATUS_VALUES[1]
+    join_column_choices = ((name_column, amount), (location_column, amount), (name_column, status))
     base = [
-        QueryPlan("select", parent.name, ("name", "city")),
-        QueryPlan("distinct", parent.name, ("city",), distinct=True),
-        QueryPlan("filter", child.name, (child.columns[0].name, amount), filters=(Filter(status, "=", "shipped"),)),
-        QueryPlan("and_filter", child.name, (child.columns[0].name,), filters=(Filter(amount, ">", 20), Filter(status, "=", "shipped"))),
-        QueryPlan("or_filter", child.name, (child.columns[0].name,), filters=(Filter(status, "=", "shipped"), Filter(status, "=", "open")), filter_connector="OR"),
+        QueryPlan("select", parent.name, (name_column, location_column)),
+        QueryPlan("distinct", parent.name, (location_column,), distinct=True),
+        QueryPlan("filter", child.name, (child.columns[0].name, amount), filters=(Filter(status, "=", shipped),)),
+        QueryPlan("and_filter", child.name, (child.columns[0].name,), filters=(Filter(amount, ">", 20), Filter(status, "=", shipped))),
+        QueryPlan("or_filter", child.name, (child.columns[0].name,), filters=(Filter(status, "=", shipped), Filter(status, "=", open_status)), filter_connector="OR"),
         QueryPlan("count", child.name, (), aggregate="COUNT"),
         QueryPlan("sum", child.name, (), aggregate="SUM", aggregate_column=amount),
         QueryPlan("avg", child.name, (), aggregate="AVG", aggregate_column=amount),
@@ -32,7 +41,7 @@ def plans_for(schema: Schema, count: int = 13) -> list[QueryPlan]:
         QueryPlan("max", child.name, (), aggregate="MAX", aggregate_column=amount),
         QueryPlan("group", child.name, (status,), aggregate="COUNT", group_by=(status,)),
         QueryPlan("order_limit", child.name, (child.columns[0].name, amount), order_by=amount, descending=True, limit=3),
-        QueryPlan("join", parent.name, (f"{parent.name}.name", f"{child.name}.{amount}"), join_table=child.name, join_on=(f"{parent.name}.{parent_id}", f"{child.name}.{child_fk}")),
+        QueryPlan("join", parent.name, (f"{parent.name}.{name_column}", f"{child.name}.{amount}"), join_table=child.name, join_on=(f"{parent.name}.{parent_id}", f"{child.name}.{child_fk}")),
     ]
     plans: list[QueryPlan] = []
     thresholds = (10, 20, 40, 75, 100, 150, 200, 250)
@@ -44,9 +53,21 @@ def plans_for(schema: Schema, count: int = 13) -> list[QueryPlan]:
                 plans.append(plan)
                 continue
             threshold = thresholds[(variant - 1) % len(thresholds)]
-            if plan.table == child.name:
-                filters = plan.filters + (Filter(amount, ">", threshold),)
-                plans.append(replace(plan, filters=filters, limit=(plan.limit or None)))
+            if plan.family == "join":
+                left_column, right_column = join_column_choices[(variant - 1) % len(join_column_choices)]
+                plans.append(replace(plan, columns=(f"{parent.name}.{left_column}", f"{child.name}.{right_column}"), limit=variant + 1))
+            elif plan.family == "filter":
+                cycled_status = STATUS_VALUES[variant % len(STATUS_VALUES)]
+                plans.append(replace(plan, filters=(Filter(status, "=", cycled_status),)))
+            elif plan.family == "or_filter":
+                first, second = STATUS_VALUES[variant % len(STATUS_VALUES)], STATUS_VALUES[(variant + 1) % len(STATUS_VALUES)]
+                plans.append(replace(plan, filters=(Filter(status, "=", first), Filter(status, "=", second))))
+            elif plan.family == "and_filter":
+                plans.append(replace(plan, filters=_with_threshold(plan.filters, amount, threshold)))
+            elif plan.family == "order_limit":
+                plans.append(replace(plan, limit=(variant % 5) + 2))
+            elif plan.table == child.name:
+                plans.append(replace(plan, filters=(Filter(amount, ">", threshold),)))
             else:
                 plans.append(replace(plan, limit=variant + 1))
     return plans

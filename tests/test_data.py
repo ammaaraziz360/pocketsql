@@ -17,6 +17,14 @@ def test_generation_is_deterministic_and_split_by_schema():
     assert not split_ids[1] & split_ids[2]
 
 
+def test_schema_vocabulary_is_diverse_and_not_shared_across_splits():
+    splits = build_records(30, 20, 7)
+    shapes = {name: {record["schema_sql"] for record in records} for name, records in splits.items()}
+    assert len(shapes["train"]) > 5
+    assert not shapes["train"] & shapes["test"]
+    assert not shapes["train"] & shapes["validation"]
+
+
 def test_generated_sql_executes_and_all_families_exist():
     splits = build_records(5, 13, 42)
     records = [record for split in splits.values() for record in split]
