@@ -1,5 +1,8 @@
 from pocketsql.data.validate import is_read_only_select
-from pocketsql.model.tokenizer import ByteTokenizer
+import pytest
+
+from pocketsql.model.tokenizer import BPETokenizer, ByteTokenizer, load_tokenizer
+from pocketsql.training.audit import audit_sequences, require_complete_sequences
 from pocketsql.training.dataset import encode_record
 
 
@@ -16,6 +19,34 @@ def test_loss_mask_excludes_prompt_tokens():
     sql_start = ids.index(tokenizer.token_to_id["<sql>"])
     assert not any(mask[:sql_start])
     assert all(mask[sql_start:])
+
+
+def test_bpe_tokenizer_round_trips_unseen_identifiers_and_is_portable(tmp_path):
+    training_text = [
+        "<bos><schema>CREATE TABLE customers (customer_id INTEGER);</schema><question>show ids</question><sql>SELECT customer_id FROM customers;</sql><eos>",
+        "<bos><schema>CREATE TABLE orders (order_id INTEGER);</schema><question>list orders</question><sql>SELECT order_id FROM orders;</sql><eos>",
+    ]
+    tokenizer = BPETokenizer.train(training_text, vocab_size=512)
+    unseen = "<bos><schema>CREATE TABLE café_λ (brand_new_key TEXT);</schema><question>show brand_new_key</question><sql>SELECT brand_new_key FROM café_λ;</sql><eos>"
+    assert tokenizer.decode(tokenizer.encode(unseen)) == unseen
+    path = tmp_path / "tokenizer.json"
+    tokenizer.save(path)
+    restored = load_tokenizer(path)
+    assert restored.decode(restored.encode(unseen)) == unseen
+
+
+def test_checkpoint_without_embedded_tokenizer_uses_legacy_bytes(tmp_path):
+    assert isinstance(load_tokenizer(tmp_path), ByteTokenizer)
+
+
+def test_sequence_audit_rejects_partial_targets():
+    tokenizer = ByteTokenizer()
+    record = {"schema_sql": "CREATE TABLE x (id INTEGER, long_name TEXT);", "question": "show long names", "sql": "SELECT long_name FROM x WHERE id > 10;"}
+    report = audit_sequences([record], tokenizer, context_length=40, generation_max_tokens=10)
+    assert report["partial_targets"] + report["zero_targets"] > 0
+    assert report["generation_targets_over_cap"] == 1
+    with pytest.raises(ValueError, match="sequence audit failed"):
+        require_complete_sequences(report)
 
 
 def test_unsafe_and_multi_statement_sql_is_rejected():

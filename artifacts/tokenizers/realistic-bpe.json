@@ -1,0 +1,6116 @@
+{
+  "version": "1.0",
+  "truncation": null,
+  "padding": null,
+  "added_tokens": [
+    {
+      "id": 0,
+      "content": "<pad>",
+      "single_word": false,
+      "lstrip": false,
+      "rstrip": false,
+      "normalized": false,
+      "special": true
+    },
+    {
+      "id": 1,
+      "content": "<bos>",
+      "single_word": false,
+      "lstrip": false,
+      "rstrip": false,
+      "normalized": false,
+      "special": true
+    },
+    {
+      "id": 2,
+      "content": "<eos>",
+      "single_word": false,
+      "lstrip": false,
+      "rstrip": false,
+      "normalized": false,
+      "special": true
+    },
+    {
+      "id": 3,
+      "content": "<schema>",
+      "single_word": false,
+      "lstrip": false,
+      "rstrip": false,
+      "normalized": false,
+      "special": true
+    },
+    {
+      "id": 4,
+      "content": "</schema>",
+      "single_word": false,
+      "lstrip": false,
+      "rstrip": false,
+      "normalized": false,
+      "special": true
+    },
+    {
+      "id": 5,
+      "content": "<question>",
+      "single_word": false,
+      "lstrip": false,
+      "rstrip": false,
+      "normalized": false,
+      "special": true
+    },
+    {
+      "id": 6,
+      "content": "</question>",
+      "single_word": false,
+      "lstrip": false,
+      "rstrip": false,
+      "normalized": false,
+      "special": true
+    },
+    {
+      "id": 7,
+      "content": "<sql>",
+      "single_word": false,
+      "lstrip": false,
+      "rstrip": false,
+      "normalized": false,
+      "special": true
+    },
+    {
+      "id": 8,
+      "content": "</sql>",
+      "single_word": false,
+      "lstrip": false,
+      "rstrip": false,
+      "normalized": false,
+      "special": true
+    }
+  ],
+  "normalizer": null,
+  "pre_tokenizer": {
+    "type": "ByteLevel",
+    "add_prefix_space": false,
+    "trim_offsets": true,
+    "use_regex": true
+  },
+  "post_processor": null,
+  "decoder": {
+    "type": "ByteLevel",
+    "add_prefix_space": true,
+    "trim_offsets": true,
+    "use_regex": true
+  },
+  "model": {
+    "type": "BPE",
+    "dropout": null,
+    "unk_token": null,
+    "continuing_subword_prefix": null,
+    "end_of_word_suffix": null,
+    "fuse_unk": false,
+    "byte_fallback": false,
+    "ignore_merges": false,
+    "vocab": {
+      "<pad>": 0,
+      "<bos>": 1,
+      "<eos>": 2,
+      "<schema>": 3,
+      "</schema>": 4,
+      "<question>": 5,
+      "</question>": 6,
+      "<sql>": 7,
+      "</sql>": 8,
+      "!": 9,
+      "\"": 10,
+      "#": 11,
+      "$": 12,
+      "%": 13,
+      "&": 14,
+      "'": 15,
+      "(": 16,
+      ")": 17,
+      "*": 18,
+      "+": 19,
+      ",": 20,
+      "-": 21,
+      ".": 22,
+      "/": 23,
+      "0": 24,
+      "1": 25,
+      "2": 26,
+      "3": 27,
+      "4": 28,
+      "5": 29,
+      "6": 30,
+      "7": 31,
+      "8": 32,
+      "9": 33,
+      ":": 34,
+      ";": 35,
+      "<": 36,
+      "=": 37,
+      ">": 38,
+      "?": 39,
+      "@": 40,
+      "A": 41,
+      "B": 42,
+      "C": 43,
+      "D": 44,
+      "E": 45,
+      "F": 46,
+      "G": 47,
+      "H": 48,
+      "I": 49,
+      "J": 50,
+      "K": 51,
+      "L": 52,
+      "M": 53,
+      "N": 54,
+      "O": 55,
+      "P": 56,
+      "Q": 57,
+      "R": 58,
+      "S": 59,
+      "T": 60,
+      "U": 61,
+      "V": 62,
+      "W": 63,
+      "X": 64,
+      "Y": 65,
+      "Z": 66,
+      "[": 67,
+      "\\": 68,
+      "]": 69,
+      "^": 70,
+      "_": 71,
+      "`": 72,
+      "a": 73,
+      "b": 74,
+      "c": 75,
+      "d": 76,
+      "e": 77,
+      "f": 78,
+      "g": 79,
+      "h": 80,
+      "i": 81,
+      "j": 82,
+      "k": 83,
+      "l": 84,
+      "m": 85,
+      "n": 86,
+      "o": 87,
+      "p": 88,
+      "q": 89,
+      "r": 90,
+      "s": 91,
+      "t": 92,
+      "u": 93,
+      "v": 94,
+      "w": 95,
+      "x": 96,
+      "y": 97,
+      "z": 98,
+      "{": 99,
+      "|": 100,
+      "}": 101,
+      "~": 102,
+      "¡": 103,
+      "¢": 104,
+      "£": 105,
+      "¤": 106,
+      "¥": 107,
+      "¦": 108,
+      "§": 109,
+      "¨": 110,
+      "©": 111,
+      "ª": 112,
+      "«": 113,
+      "¬": 114,
+      "®": 115,
+      "¯": 116,
+      "°": 117,
+      "±": 118,
+      "²": 119,
+      "³": 120,
+      "´": 121,
+      "µ": 122,
+      "¶": 123,
+      "·": 124,
+      "¸": 125,
+      "¹": 126,
+      "º": 127,
+      "»": 128,
+      "¼": 129,
+      "½": 130,
+      "¾": 131,
+      "¿": 132,
+      "À": 133,
+      "Á": 134,
+      "Â": 135,
+      "Ã": 136,
+      "Ä": 137,
+      "Å": 138,
+      "Æ": 139,
+      "Ç": 140,
+      "È": 141,
+      "É": 142,
+      "Ê": 143,
+      "Ë": 144,
+      "Ì": 145,
+      "Í": 146,
+      "Î": 147,
+      "Ï": 148,
+      "Ð": 149,
+      "Ñ": 150,
+      "Ò": 151,
+      "Ó": 152,
+      "Ô": 153,
+      "Õ": 154,
+      "Ö": 155,
+      "×": 156,
+      "Ø": 157,
+      "Ù": 158,
+      "Ú": 159,
+      "Û": 160,
+      "Ü": 161,
+      "Ý": 162,
+      "Þ": 163,
+      "ß": 164,
+      "à": 165,
+      "á": 166,
+      "â": 167,
+      "ã": 168,
+      "ä": 169,
+      "å": 170,
+      "æ": 171,
+      "ç": 172,
+      "è": 173,
+      "é": 174,
+      "ê": 175,
+      "ë": 176,
+      "ì": 177,
+      "í": 178,
+      "î": 179,
+      "ï": 180,
+      "ð": 181,
+      "ñ": 182,
+      "ò": 183,
+      "ó": 184,
+      "ô": 185,
+      "õ": 186,
+      "ö": 187,
+      "÷": 188,
+      "ø": 189,
+      "ù": 190,
+      "ú": 191,
+      "û": 192,
+      "ü": 193,
+      "ý": 194,
+      "þ": 195,
+      "ÿ": 196,
+      "Ā": 197,
+      "ā": 198,
+      "Ă": 199,
+      "ă": 200,
+      "Ą": 201,
+      "ą": 202,
+      "Ć": 203,
+      "ć": 204,
+      "Ĉ": 205,
+      "ĉ": 206,
+      "Ċ": 207,
+      "ċ": 208,
+      "Č": 209,
+      "č": 210,
+      "Ď": 211,
+      "ď": 212,
+      "Đ": 213,
+      "đ": 214,
+      "Ē": 215,
+      "ē": 216,
+      "Ĕ": 217,
+      "ĕ": 218,
+      "Ė": 219,
+      "ė": 220,
+      "Ę": 221,
+      "ę": 222,
+      "Ě": 223,
+      "ě": 224,
+      "Ĝ": 225,
+      "ĝ": 226,
+      "Ğ": 227,
+      "ğ": 228,
+      "Ġ": 229,
+      "ġ": 230,
+      "Ģ": 231,
+      "ģ": 232,
+      "Ĥ": 233,
+      "ĥ": 234,
+      "Ħ": 235,
+      "ħ": 236,
+      "Ĩ": 237,
+      "ĩ": 238,
+      "Ī": 239,
+      "ī": 240,
+      "Ĭ": 241,
+      "ĭ": 242,
+      "Į": 243,
+      "į": 244,
+      "İ": 245,
+      "ı": 246,
+      "Ĳ": 247,
+      "ĳ": 248,
+      "Ĵ": 249,
+      "ĵ": 250,
+      "Ķ": 251,
+      "ķ": 252,
+      "ĸ": 253,
+      "Ĺ": 254,
+      "ĺ": 255,
+      "Ļ": 256,
+      "ļ": 257,
+      "Ľ": 258,
+      "ľ": 259,
+      "Ŀ": 260,
+      "ŀ": 261,
+      "Ł": 262,
+      "ł": 263,
+      "Ń": 264,
+      "TE": 265,
+      "co": 266,
+      "at": 267,
+      "st": 268,
+      "ue": 269,
+      "al": 270,
+      "RE": 271,
+      "XT": 272,
+      "ĠTE": 273,
+      "ĠTEXT": 274,
+      "re": 275,
+      "on": 276,
+      "col": 277,
+      "><": 278,
+      "ion": 279,
+      "er": 280,
+      "alue": 281,
+      "value": 282,
+      "ch": 283,
+      "IN": 284,
+      "id": 285,
+      "ER": 286,
+      "ĠIN": 287,
+      "Ġt": 288,
+      "</": 289,
+      "GER": 290,
+      "LE": 291,
+      "TEGER": 292,
+      "REA": 293,
+      "ĠINTEGER": 294,
+      "Ġcol": 295,
+      "uest": 296,
+      "nt": 297,
+      "che": 298,
+      "me": 299,
+      "ma": 300,
+      "or": 301,
+      "in": 302,
+      "IM": 303,
+      "ce": 304,
+      "an": 305,
+      "bl": 306,
+      ");": 307,
+      "AB": 308,
+      "AR": 309,
+      "CREA": 310,
+      "EY": 311,
+      "KEY": 312,
+      "PR": 313,
+      "TAB": 314,
+      "os": 315,
+      "ql": 316,
+      "quest": 317,
+      "sche": 318,
+      "sql": 319,
+      "Ġ(": 320,
+      "ĠKEY": 321,
+      "ĠPR": 322,
+      "ĠTAB": 323,
+      "IMAR": 324,
+      "CREATE": 325,
+      "question": 326,
+      "schema": 327,
+      "ĠPRIMAR": 328,
+      "ĠTABLE": 329,
+      "ĠPRIMARY": 330,
+      "Ġtbl": 331,
+      "ed": 332,
+      "ERE": 333,
+      "it": 334,
+      "ro": 335,
+      "en": 336,
+      "Ġc": 337,
+      "is": 338,
+      "dat": 339,
+      "data": 340,
+      "de": 341,
+      "stat": 342,
+      "ame": 343,
+      "Ġs": 344,
+      "ur": 345,
+      "Ġp": 346,
+      "Ġre": 347,
+      "ct": 348,
+      "ers": 349,
+      "rd": 350,
+      "le": 351,
+      "Ġf": 352,
+      "Ġa": 353,
+      "ES": 354,
+      "ke": 355,
+      "name": 356,
+      "es": 357,
+      "la": 358,
+      "Id": 359,
+      "CT": 360,
+      "),": 361,
+      "RO": 362,
+      "ot": 363,
+      "us": 364,
+      ";</": 365,
+      "CES": 366,
+      "ELE": 367,
+      "FERE": 368,
+      "FRO": 369,
+      "NCES": 370,
+      "SELE": 371,
+      "bos": 372,
+      "eos": 373,
+      "ĠRE": 374,
+      "ĠREA": 375,
+      "ĠFRO": 376,
+      ");</": 377,
+      "FERENCES": 378,
+      "SELECT": 379,
+      "ĠREFERENCES": 380,
+      "ĠREAL": 381,
+      "ĠFROM": 382,
+      "ist": 383,
+      "cord": 384,
+      "cords": 385,
+      "Ġw": 386,
+      "ing": 387,
+      "ation": 388,
+      "istr": 389,
+      "guest": 390,
+      "ll": 391,
+      "Ġ=": 392,
+      "Ġb": 393,
+      "status": 394,
+      "ip": 395,
+      "Ġl": 396,
+      "otal": 397,
+      "gistr": 398,
+      "ere": 399,
+      "nts": 400,
+      "der": 401,
+      "records": 402,
+      "ate": 403,
+      "ss": 404,
+      "HERE": 405,
+      "WHERE": 406,
+      "ĠWHERE": 407,
+      "state": 408,
+      "ho": 409,
+      "ar": 410,
+      "act": 411,
+      "Ġco": 412,
+      "ic": 413,
+      "Ġ'": 414,
+      "key": 415,
+      "row": 416,
+      "unt": 417,
+      "din": 418,
+      "Ġis": 419,
+      "cu": 420,
+      "Ġfor": 421,
+      "ne": 422,
+      "se": 423,
+      "and": 424,
+      "Ġe": 425,
+      "Ġor": 426,
+      "ped": 427,
+      "hip": 428,
+      "ĠO": 429,
+      "hipped": 430,
+      "ice": 431,
+      "rea": 432,
+      "om": 433,
+      "stom": 434,
+      "our": 435,
+      "ource": 436,
+      "ck": 437,
+      "check": 438,
+      "total": 439,
+      "here": 440,
+      "Ġand": 441,
+      "ve": 442,
+      "ance": 443,
+      "gistration": 444,
+      "Ġwhere": 445,
+      "ten": 446,
+      "atten": 447,
+      "enro": 448,
+      "ory": 449,
+      "ket": 450,
+      "Ġin": 451,
+      "vis": 452,
+      "visit": 453,
+      "ude": 454,
+      "stude": 455,
+      "oan": 456,
+      "ron": 457,
+      "atron": 458,
+      "Ġ>": 459,
+      "ity": 460,
+      "ntact": 461,
+      "mb": 462,
+      "mar": 463,
+      "Ġguest": 464,
+      "gory": 465,
+      "ategory": 466,
+      "tic": 467,
+      "ith": 468,
+      "Ġwith": 469,
+      "stomer": 470,
+      "ee": 471,
+      "memb": 472,
+      "reat": 473,
+      "orrow": 474,
+      "pen": 475,
+      "Ġ3": 476,
+      "ions": 477,
+      "king": 478,
+      "attende": 479,
+      "Ġsource": 480,
+      "mark": 481,
+      "ad": 482,
+      "Ġth": 483,
+      "Ġo": 484,
+      "code": 485,
+      "mo": 486,
+      "mount": 487,
+      "ab": 488,
+      "';</": 489,
+      "tur": 490,
+      "turn": 491,
+      "Ġstatus": 492,
+      "ple": 493,
+      "ĠOR": 494,
+      "cul": 495,
+      "Ġ1": 496,
+      "Ġ4": 497,
+      "Ġcategory": 498,
+      "cco": 499,
+      "student": 500,
+      "diner": 501,
+      "ant": 502,
+      "Ġd": 503,
+      "IT": 504,
+      "LIM": 505,
+      "ĠLIM": 506,
+      "ĠLIMIT": 507,
+      "oo": 508,
+      "ooking": 509,
+      "li": 510,
+      "Ġli": 511,
+      "Ġm": 512,
+      "Ġcheck": 513,
+      "Ġcontact": 514,
+      "Name": 515,
+      "mis": 516,
+      "miss": 517,
+      "Ġmat": 518,
+      "Ġne": 519,
+      "Ġloan": 520,
+      "ote": 521,
+      "erv": 522,
+      "lar": 523,
+      "pla": 524,
+      "member": 525,
+      "ass": 526,
+      "shipped": 527,
+      "Ġshipped": 528,
+      "cess": 529,
+      "rocess": 530,
+      "rocessed": 531,
+      "anne": 532,
+      "annel": 533,
+      "ses": 534,
+      "lie": 535,
+      "area": 536,
+      "ir": 537,
+      "culation": 538,
+      "irculation": 539,
+      "Ġenro": 540,
+      "St": 541,
+      "Ġstate": 542,
+      "Ġorder": 543,
+      "city": 544,
+      "ull": 545,
+      "artic": 546,
+      "articip": 547,
+      "marks": 548,
+      "ders": 549,
+      "il": 550,
+      "pil": 551,
+      "upil": 552,
+      "Ke": 553,
+      "Key": 554,
+      "Ġvisit": 555,
+      "Ġtic": 556,
+      "Ġticket": 557,
+      "customer": 558,
+      "attendee": 559,
+      "lle": 560,
+      "patron": 561,
+      "olar": 562,
+      "cholar": 563,
+      "Ġregistration": 564,
+      "ive": 565,
+      "lag": 566,
+      "reated": 567,
+      "Ġcu": 568,
+      "mple": 569,
+      "te": 570,
+      "lled": 571,
+      "ancelled": 572,
+      "Ġ10": 573,
+      "mplete": 574,
+      "fere": 575,
+      "lear": 576,
+      "learn": 577,
+      "Ġrow": 578,
+      "Ġrows": 579,
+      "Ġg": 580,
+      "ccount": 581,
+      "Re": 582,
+      "Records": 583,
+      "ost": 584,
+      "home": 585,
+      "ostal": 586,
+      "registration": 587,
+      "ran": 588,
+      "oice": 589,
+      "voice": 590,
+      "rom": 591,
+      "Ġfrom": 592,
+      "return": 593,
+      "gion": 594,
+      "llme": 595,
+      "leg": 596,
+      "ard": 597,
+      "hol": 598,
+      "ardhol": 599,
+      "nce": 600,
+      "ference": 601,
+      "ge": 602,
+      "ispla": 603,
+      "isplay": 604,
+      "ase": 605,
+      "Ġof": 606,
+      "Ġtab": 607,
+      "Ġneed": 608,
+      "serv": 609,
+      "ches": 610,
+      "Ġmatches": 611,
+      "Ġ30": 612,
+      "Ġal": 613,
+      "Ġall": 614,
+      "note": 615,
+      "qu": 616,
+      "als": 617,
+      "Ġequ": 618,
+      "Ġequals": 619,
+      "fee": 620,
+      "Ġborrow": 621,
+      "Ġthe": 622,
+      "mit": 623,
+      "Ġlimit": 624,
+      "ale": 625,
+      "ants": 626,
+      "Ġpatron": 627,
+      "uy": 628,
+      "JO": 629,
+      "NER": 630,
+      "ĠA": 631,
+      "ĠJO": 632,
+      "ĠINNER": 633,
+      "ĠON": 634,
+      "ĠJOIN": 635,
+      "Ġprocessed": 636,
+      "Ġdin": 637,
+      "rice": 638,
+      "Ġguests": 639,
+      "Ġbooking": 640,
+      "wh": 641,
+      "ou": 642,
+      "out": 643,
+      "Ġremarks": 644,
+      "Ġcreated": 645,
+      "servation": 646,
+      "channel": 647,
+      "guests": 648,
+      "borrow": 649,
+      "Total": 650,
+      "order": 651,
+      "ctive": 652,
+      "Ġactive": 653,
+      "sact": 654,
+      "ransact": 655,
+      "urch": 656,
+      "lass": 657,
+      "mission": 658,
+      "Ġcour": 659,
+      "flag": 660,
+      "hase": 661,
+      "account": 662,
+      "Ġto": 663,
+      "Ġcirculation": 664,
+      "Ġamount": 665,
+      "ict": 666,
+      "istrict": 667,
+      "articipant": 668,
+      "amount": 669,
+      "loan": 670,
+      "deleg": 671,
+      "Ġ2": 672,
+      "ĠD": 673,
+      "Ġ40": 674,
+      "Ġad": 675,
+      "ticket": 676,
+      "end": 677,
+      "Ġhome": 678,
+      "Ġpostal": 679,
+      "Ġregion": 680,
+      "Ġcustomer": 681,
+      "Ġpatrons": 682,
+      "abl": 683,
+      "ide": 684,
+      "eside": 685,
+      "ableside": 686,
+      "Ġreference": 687,
+      "ctions": 688,
+      "Ġpass": 689,
+      "Ġenrollme": 690,
+      "gistrant": 691,
+      "ceme": 692,
+      "pupil": 693,
+      "State": 694,
+      "Ġas": 695,
+      "reater": 696,
+      "Ġthan": 697,
+      "Ġgreater": 698,
+      "BY": 699,
+      "ND": 700,
+      "ĠBY": 701,
+      "ĠAND": 702,
+      "xce": 703,
+      "eds": 704,
+      "Ġexce": 705,
+      "Ġexceeds": 706,
+      "bo": 707,
+      "Ġabo": 708,
+      "Ġabove": 709,
+      "clie": 710,
+      "ĠsourceC": 711,
+      "scholar": 712,
+      "alance": 713,
+      "source": 714,
+      "learner": 715,
+      "Ġdisplay": 716,
+      "Ġfull": 717,
+      "contact": 718,
+      "enrolle": 719,
+      "open": 720,
+      "Ġ5": 721,
+      "Ġ6": 722,
+      "Ġopen": 723,
+      "tab": 724,
+      "Ġtabs": 725,
+      "Ġcity": 726,
+      "Ġse": 727,
+      "students": 728,
+      "attendees": 729,
+      "Ġinvoice": 730,
+      "ases": 731,
+      "outs": 732,
+      "urchases": 733,
+      "cour": 734,
+      "dit": 735,
+      "redit": 736,
+      "Ġfee": 737,
+      "Ġdistrict": 738,
+      "At": 739,
+      "cancelled": 740,
+      "complete": 741,
+      "Ġcancelled": 742,
+      "Ġcomplete": 743,
+      "pass": 744,
+      "Ġclie": 745,
+      "registrant": 746,
+      "full": 747,
+      "phase": 748,
+      "reader": 749,
+      "price": 750,
+      "Ġregistrations": 751,
+      "meal": 752,
+      "gistrants": 753,
+      "Ġname": 754,
+      "ardholder": 755,
+      "members": 756,
+      "Ġreturn": 757,
+      "Ġlend": 758,
+      "pp": 759,
+      "lse": 760,
+      "Ġelse": 761,
+      "booking": 762,
+      "missions": 763,
+      "buy": 764,
+      "client": 765,
+      "sho": 766,
+      "ode": 767,
+      "Ġdiners": 768,
+      "atus": 769,
+      "Status": 770,
+      "Ġenrolle": 771,
+      "visitor": 772,
+      "sale": 773,
+      "ales": 774,
+      "ings": 775,
+      "ransactions": 776,
+      "Ġsections": 777,
+      "fin": 778,
+      "stomers": 779,
+      "ardholders": 780,
+      "DER": 781,
+      "ĠM": 782,
+      "ESC": 783,
+      "ĠORDER": 784,
+      "ĠDESC": 785,
+      "Ġstudent": 786,
+      "invoice": 787,
+      "participant": 788,
+      "Ġscholar": 789,
+      "Ġlimited": 790,
+      "learners": 791,
+      "ly": 792,
+      "Ġon": 793,
+      "Ġreturning": 794,
+      "Ġonly": 795,
+      "Ġreservation": 796,
+      "enrollee": 797,
+      "dance": 798,
+      "attendance": 799,
+      "Ġbookings": 800,
+      "Ġclass": 801,
+      "Ġpupil": 802,
+      "ich": 803,
+      "which": 804,
+      "core": 805,
+      "char": 806,
+      "charge": 807,
+      "Ġbad": 808,
+      "unts": 809,
+      "Ġsale": 810,
+      "Ġcourses": 811,
+      "cements": 812,
+      "Ġlends": 813,
+      "ppers": 814,
+      "Ġread": 815,
+      "Ġreaders": 816,
+      "eo": 817,
+      "vent": 818,
+      "eople": 819,
+      "Ġmembers": 820,
+      "Ġby": 821,
+      "(*": 822,
+      "CO": 823,
+      "NT": 824,
+      "UNT": 825,
+      "ĠCO": 826,
+      "ĠCOUNT": 827,
+      "category": 828,
+      "admission": 829,
+      "Ġpla": 830,
+      "Ġcirculations": 831,
+      "ill": 832,
+      "pend": 833,
+      "Ġstudents": 834,
+      "Ġclients": 835,
+      "circulation": 836,
+      "what": 837,
+      "delegate": 838,
+      "Ġtotal": 839,
+      "Ġbuy": 840,
+      "Ġdiner": 841,
+      "stand": 842,
+      "standing": 843,
+      "cardholder": 844,
+      "ty": 845,
+      "alty": 846,
+      "ges": 847,
+      "Ġpurchases": 848,
+      "Ġchecks": 849,
+      "Ġcheckouts": 850,
+      "Ġvisits": 851,
+      "Ġtickets": 852,
+      "Ġcustomers": 853,
+      "articipants": 854,
+      "Ġregistrants": 855,
+      "Ġcardholders": 856,
+      "Ġtableside": 857,
+      "Ġdining": 858,
+      "hannel": 859,
+      "ĠsourceChannel": 860,
+      "borrower": 861,
+      "Ġvisitor": 862,
+      "lt": 863,
+      "su": 864,
+      "sult": 865,
+      "display": 866,
+      "Ġtransactions": 867,
+      "ccounts": 868,
+      "Ġborrowings": 869,
+      "Ġpasses": 870,
+      "Ġscholars": 871,
+      "Ġborrowers": 872,
+      "Ġlearners": 873,
+      "Ġadmission": 874,
+      "course": 875,
+      "find": 876,
+      "reservation": 877,
+      "show": 878,
+      "list": 879,
+      "Ġenrollees": 880,
+      "Ġadmissions": 881,
+      "Ġbadges": 882,
+      "Ġplacements": 883,
+      "postal": 884,
+      "enrollme": 885,
+      "Ġcourse": 886,
+      "Ġenrollment": 887,
+      "ade": 888,
+      "pa": 889,
+      "rade": 890,
+      "buyer": 891,
+      "Ġmember": 892,
+      "class": 893,
+      "region": 894,
+      "ates": 895,
+      "delegates": 896,
+      "Ġevent": 897,
+      "Ġattendees": 898,
+      "ell": 899,
+      "Ġwell": 900,
+      "Ġsales": 901,
+      "Ġloans": 902,
+      "registrations": 903,
+      "Ġenrollments": 904,
+      "Ġreservations": 905,
+      "balance": 906,
+      "Area": 907,
+      "Ġattendee": 908,
+      "Flag": 909,
+      "reference": 910,
+      "ĠactiveFlag": 911,
+      "br": 912,
+      "ary": 913,
+      "brary": 914,
+      "Ġpupils": 915,
+      "Ġcredit": 916,
+      "cal": 917,
+      "culate": 918,
+      "calculate": 919,
+      "Ġorders": 920,
+      "Ġattendance": 921,
+      "Ġstanding": 922,
+      "cy": 923,
+      "cle": 924,
+      "ecy": 925,
+      "fecy": 926,
+      "fecycle": 927,
+      "processed": 928,
+      "ching": 929,
+      "Ġmatching": 930,
+      "Note": 931,
+      "ĠcontactNote": 932,
+      "Ġaccount": 933,
+      "Ġmeal": 934,
+      "Ġbalance": 935,
+      "ransaction": 936,
+      "jo": 937,
+      "Ġjo": 938,
+      "ined": 939,
+      "Ġjoined": 940,
+      "people": 941,
+      "tableside": 942,
+      "Ġparticipants": 943,
+      "inking": 944,
+      "Ġlinking": 945,
+      "Ġbuyers": 946,
+      "Fee": 947,
+      "active": 948,
+      "dining": 949,
+      "enrollment": 950,
+      "ction": 951,
+      "Ġmark": 952,
+      "enalty": 953,
+      "Ġprice": 954,
+      "Ġpenalty": 955,
+      "remarks": 956,
+      "ader": 957,
+      "Ġreader": 958,
+      "Ġserv": 959,
+      "Ġservice": 960,
+      "ĠprocessedAt": 961,
+      "Ġsho": 962,
+      "Ġshoppers": 963,
+      "Ġvisitors": 964,
+      "Ġaccounts": 965,
+      "Ġparticipant": 966,
+      "passes": 967,
+      "legal": 968,
+      "City": 969,
+      "created": 970,
+      "Ġcharge": 971,
+      "ĠcreatedAt": 972,
+      "Ġdelegates": 973,
+      "patrons": 974,
+      "ĠsourceCode": 975,
+      "Ġinvoices": 976,
+      "rit": 977,
+      "errit": 978,
+      "ranch": 979,
+      "erritory": 980,
+      "Ġscore": 981,
+      "Ġresult": 982,
+      "Code": 983,
+      "ĠreferenceCode": 984,
+      "credit": 985,
+      "AX": 986,
+      "IS": 987,
+      "SU": 988,
+      "TIN": 989,
+      "VG": 990,
+      "ĠSU": 991,
+      "Ġav": 992,
+      "Ġlibrary": 993,
+      "Ġ100": 994,
+      "ĠAVG": 995,
+      "ĠDIS": 996,
+      "Ġ60": 997,
+      "ĠMIN": 998,
+      "ĠMAX": 999,
+      "(*)": 1000,
+      "TINCT": 1001,
+      "ĠSUM": 1002,
+      "ĠDISTINCT": 1003,
+      "cement": 1004,
+      "ĠhomeCity": 1005,
+      "ĠdisplayName": 1006,
+      "ine": 1007,
+      "Ġspend": 1008,
+      "Ġfine": 1009,
+      "Ġcost": 1010,
+      "Value": 1011,
+      "ĠpostalArea": 1012,
+      "Ġbill": 1013,
+      "market": 1014,
+      "urchase": 1015,
+      "transaction": 1016,
+      "tabs": 1017,
+      "ĠfullName": 1018,
+      "due": 1019,
+      "ven": 1020,
+      "venue": 1021,
+      "district": 1022,
+      "pupils": 1023,
+      "Ġphase": 1024,
+      "Ġlifecycle": 1025,
+      "section": 1026,
+      "lend": 1027,
+      "sections": 1028,
+      "courses": 1029,
+      "score": 1030,
+      "learnerId": 1031,
+      "checkout": 1032,
+      "gpa": 1033,
+      "bill": 1034,
+      "users": 1035,
+      "scholars": 1036,
+      "readers": 1037,
+      "ĠguestRecords": 1038,
+      "ĠcheckTotal": 1039,
+      "Ġnet": 1040,
+      "Ġgrade": 1041,
+      "GRO": 1042,
+      "UP": 1043,
+      "ĠGRO": 1044,
+      "(*),": 1045,
+      "ĠGROUP": 1046,
+      "placement": 1047,
+      "ĠbookingStatus": 1048,
+      "purchases": 1049,
+      "checkouts": 1050,
+      "ĠorderRecords": 1051,
+      "Ġlegal": 1052,
+      "spend": 1053,
+      "bad": 1054,
+      "ĠtabTotal": 1055,
+      "am": 1056,
+      "bor": 1057,
+      "gh": 1058,
+      "igh": 1059,
+      "od": 1060,
+      "pus": 1061,
+      "hood": 1062,
+      "ampus": 1063,
+      "borhood": 1064,
+      "ighborhood": 1065,
+      "buyers": 1066,
+      "Ġlar": 1067,
+      "gest": 1068,
+      "Ġlargest": 1069,
+      "mal": 1070,
+      "Ġsmal": 1071,
+      "lest": 1072,
+      "Ġsmallest": 1073,
+      "purchase": 1074,
+      "guestId": 1075,
+      "age": 1076,
+      "erage": 1077,
+      "Ġaverage": 1078,
+      "grade": 1079,
+      "Ġbranch": 1080,
+      "Ġgpa": 1081,
+      "borrowing": 1082,
+      "sales": 1083,
+      "visits": 1084,
+      "admissions": 1085,
+      "ĠticketRecords": 1086,
+      "loans": 1087,
+      "bookings": 1088,
+      "Ġma": 1089,
+      "service": 1090,
+      "enrollees": 1091,
+      "clients": 1092,
+      "shoppers": 1093,
+      "borrowers": 1094,
+      "Ġterritory": 1095,
+      "net": 1096,
+      "Ġenrollee": 1097,
+      "orders": 1098,
+      "checks": 1099,
+      "tickets": 1100,
+      "invoices": 1101,
+      "ĠclassRecords": 1102,
+      "ĠdiningRecords": 1103,
+      "Ġregistrant": 1104,
+      "ĠorderState": 1105,
+      "attendeeKey": 1106,
+      "clientId": 1107,
+      "ĠenrollmentState": 1108,
+      "nu": 1109,
+      "Ġnu": 1110,
+      "mber": 1111,
+      "Ġnumber": 1112,
+      "badge": 1113,
+      "ĠcontactName": 1114,
+      "Due": 1115,
+      "registrants": 1116,
+      "Ġclient": 1117,
+      "Us": 1118,
+      "ĠlibraryUs": 1119,
+      "ĠlibraryUsers": 1120,
+      "People": 1121,
+      "ĠeventPeople": 1122,
+      "Ġlearner": 1123,
+      "result": 1124,
+      "Ġcardholder": 1125,
+      "fine": 1126,
+      "Ġmarket": 1127,
+      "guestKey": 1128,
+      "patronId": 1129,
+      "pupilId": 1130,
+      "20": 1131,
+      "25": 1132,
+      "40": 1133,
+      "60": 1134,
+      "75": 1135,
+      "90": 1136,
+      "Ġ75": 1137,
+      "Ġ90": 1138,
+      "Ġ120": 1139,
+      "Ġ140": 1140,
+      "Ġ160": 1141,
+      "Ġ20": 1142,
+      "Ġ225": 1143,
+      "Ġ50": 1144,
+      "Ġborrower": 1145,
+      "ĠregistrationFee": 1146,
+      "ĠadmissionFee": 1147,
+      "ĠcreditValue": 1148,
+      "transactions": 1149,
+      "ĠloanRecords": 1150,
+      "borrowings": 1151,
+      "reservations": 1152,
+      "Ġvenue": 1153,
+      "Ġneighborhood": 1154,
+      "diners": 1155,
+      "dinerKey": 1156,
+      "ĠvisitState": 1157,
+      "customerId": 1158,
+      "attendeeId": 1159,
+      "scholarId": 1160,
+      "registrantId": 1161,
+      "readerId": 1162,
+      "borrowerId": 1163,
+      "ĠcourseStatus": 1164,
+      "lifecycle": 1165,
+      "territory": 1166,
+      "ĠamountDue": 1167,
+      "penalty": 1168,
+      "Ġbuyer": 1169,
+      "circulations": 1170,
+      "registrationId": 1171,
+      "delegateId": 1172,
+      "Ġcampus": 1173,
+      "studentId": 1174,
+      "dinerId": 1175,
+      "ĠloanState": 1176,
+      "participantId": 1177,
+      "ĠattendanceStatus": 1178,
+      "cardholders": 1179,
+      "branch": 1180,
+      "customers": 1181,
+      "event": 1182,
+      "accounts": 1183,
+      "participants": 1184,
+      "ĠorderTotal": 1185,
+      "cost": 1186,
+      "Ġsection": 1187,
+      "Ġbadge": 1188,
+      "ear": 1189,
+      "ffere": 1190,
+      "iffere": 1191,
+      "Ġapp": 1192,
+      "Ġdiffere": 1193,
+      "Ġappear": 1194,
+      "Ġdifferent": 1195,
+      "count": 1196,
+      "Ġtransaction": 1197,
+      "memberKey": 1198,
+      "customerKey": 1199,
+      "ĠregistrationState": 1200,
+      "ĠpassState": 1201,
+      "visitorId": 1202,
+      "enrolleeId": 1203,
+      "cardholderId": 1204,
+      "Ġavg": 1205,
+      "inct": 1206,
+      "istinct": 1207,
+      "Ġdistinct": 1208,
+      "Ġcheckout": 1209,
+      "ny": 1210,
+      "Ġthere": 1211,
+      "Ġare": 1212,
+      "how": 1213,
+      "placements": 1214,
+      "Ġmany": 1215,
+      "um": 1216,
+      "Ġsum": 1217,
+      "Ġmin": 1218,
+      "Ġmax": 1219,
+      "iq": 1220,
+      "niq": 1221,
+      "uniq": 1222,
+      "Ġuniq": 1223,
+      "Ġunique": 1224,
+      "ĠlegalName": 1225,
+      "ĠregistrationId": 1226,
+      "Ġborrowing": 1227,
+      "ĠstudentRecords": 1228,
+      "ĠcustomerRecords": 1229,
+      "library": 1230,
+      "courseId": 1231,
+      "campus": 1232,
+      "ĠguestId": 1233,
+      "studentKey": 1234,
+      "memberId": 1235,
+      "accountKey": 1236,
+      "ĠinvoiceTotal": 1237,
+      "ĠsaleValue": 1238,
+      "ĠmealTotal": 1239,
+      "ĠbillTotal": 1240,
+      "Amount": 1241,
+      "Price": 1242,
+      "uped": 1243,
+      "rouped": 1244,
+      "Ġcount": 1245,
+      "Ġgrouped": 1246,
+      "ĠparticipantName": 1247,
+      "brea": 1248,
+      "ow": 1249,
+      "Ġcounts": 1250,
+      "Ġdow": 1251,
+      "break": 1252,
+      "Ġdown": 1253,
+      "checkId": 1254,
+      "enrollmentId": 1255,
+      "Ġplacement": 1256,
+      "enrollments": 1257,
+      "displayName": 1258,
+      "Ġpurchase": 1259,
+      "ĠcourseId": 1260,
+      "ĠlearnerId": 1261,
+      "visitId": 1262,
+      "circulationId": 1263,
+      "ĠattendeeKey": 1264,
+      "ĠclientId": 1265,
+      "ĠdinerName": 1266,
+      "ĠaccountName": 1267,
+      "visitors": 1268,
+      "Guest": 1269,
+      "ĠtablesideGuest": 1270,
+      "ĠtablesideGuests": 1271,
+      "ach": 1272,
+      "for": 1273,
+      "Ġeach": 1274,
+      "ĠcirculationStatus": 1275,
+      "ĠticketPrice": 1276,
+      "ĠnetAmount": 1277,
+      "fullName": 1278,
+      "neighborhood": 1279,
+      "ĠguestKey": 1280,
+      "ĠpatronId": 1281,
+      "ĠpupilId": 1282,
+      "placementId": 1283,
+      "ĠcheckId": 1284,
+      "ĠenrollmentId": 1285,
+      "checkTotal": 1286,
+      "Ġdelegate": 1287,
+      "ĠcustomerId": 1288,
+      "passId": 1289,
+      "ĠscholarId": 1290,
+      "ĠdinerKey": 1291,
+      "reservationId": 1292,
+      "ĠattendeeId": 1293,
+      "ĠreaderId": 1294,
+      "ĠregistrantId": 1295,
+      "badgeId": 1296,
+      "ĠborrowerId": 1297,
+      "ĠmemberName": 1298,
+      "ĠvisitId": 1299,
+      "ĠcirculationId": 1300,
+      "tabTotal": 1301,
+      "ĠsaleStatus": 1302,
+      "buyerId": 1303,
+      "orderId": 1304,
+      "bookingId": 1305,
+      "saleId": 1306,
+      "ĠstudentId": 1307,
+      "ĠdinerId": 1308,
+      "ĠparticipantId": 1309,
+      "lendId": 1310,
+      "ĠplacementId": 1311,
+      "lends": 1312,
+      "badges": 1313,
+      "ĠcustomerName": 1314,
+      "ĠreaderName": 1315,
+      "ĠpassId": 1316,
+      "ĠreservationId": 1317,
+      "ĠbadgeId": 1318,
+      "ĠvenueArea": 1319,
+      "orderKey": 1320,
+      "loanKey": 1321,
+      "ticketId": 1322,
+      "ĠcustomerKey": 1323,
+      "invoiceId": 1324,
+      "ĠvisitorId": 1325,
+      "ĠmemberKey": 1326,
+      "transactionId": 1327,
+      "borrowingId": 1328,
+      "ĠenrolleeId": 1329,
+      "ĠcardholderId": 1330,
+      "contactName": 1331,
+      "ĠattendeeName": 1332,
+      "ĠorderId": 1333,
+      "ĠbookingId": 1334,
+      "ĠlendId": 1335,
+      "ĠsaleId": 1336,
+      "registrationFee": 1337,
+      "admissionFee": 1338,
+      "creditValue": 1339,
+      "Phase": 1340,
+      "ĠdelegateId": 1341,
+      "ticketKey": 1342,
+      "ĠstudentKey": 1343,
+      "admissionId": 1344,
+      "ĠmemberId": 1345,
+      "ĠaccountKey": 1346,
+      "ĠbranchArea": 1347,
+      "accountId": 1348,
+      "ĠservicePhase": 1349,
+      "homeCity": 1350,
+      "ĠloanKey": 1351,
+      "ĠorderKey": 1352,
+      "ĠticketId": 1353,
+      "ĠinvoiceId": 1354,
+      "ĠtransactionId": 1355,
+      "ĠborrowingId": 1356,
+      "amountDue": 1357,
+      "ĠguestName": 1358,
+      "ĠlearnerName": 1359,
+      "postalArea": 1360,
+      "orderTotal": 1361,
+      "loanId": 1362,
+      "tabId": 1363,
+      "checkoutId": 1364,
+      "ĠticketKey": 1365,
+      "ĠadmissionId": 1366,
+      "ĠstudentName": 1367,
+      "legalName": 1368,
+      "ĠloanId": 1369,
+      "ĠtabId": 1370,
+      "ĠcheckoutId": 1371,
+      "classId": 1372,
+      "sectionId": 1373,
+      "ĠbuyerId": 1374,
+      "mealTotal": 1375,
+      "saleValue": 1376,
+      "invoiceTotal": 1377,
+      "billTotal": 1378,
+      "participantName": 1379,
+      "dinerName": 1380,
+      "accountName": 1381,
+      "ĠclassId": 1382,
+      "ĠsectionId": 1383,
+      "ticketPrice": 1384,
+      "netAmount": 1385,
+      "ĠaccountId": 1386,
+      "diningId": 1387,
+      "purchaseId": 1388,
+      "memberName": 1389,
+      "customerName": 1390,
+      "readerName": 1391,
+      "ĠdiningId": 1392,
+      "ĠpurchaseId": 1393,
+      "bookingStatus": 1394,
+      "attendeeName": 1395,
+      "guestName": 1396,
+      "orderState": 1397,
+      "learnerName": 1398,
+      "enrollmentState": 1399,
+      "visitState": 1400,
+      "courseStatus": 1401,
+      "studentName": 1402,
+      "loanState": 1403,
+      "attendanceStatus": 1404,
+      "venueArea": 1405,
+      "registrationState": 1406,
+      "passState": 1407,
+      "branchArea": 1408,
+      "circulationStatus": 1409,
+      "saleStatus": 1410,
+      "servicePhase": 1411
+    },
+    "merges": [
+      [
+        "T",
+        "E"
+      ],
+      [
+        "c",
+        "o"
+      ],
+      [
+        "a",
+        "t"
+      ],
+      [
+        "s",
+        "t"
+      ],
+      [
+        "u",
+        "e"
+      ],
+      [
+        "a",
+        "l"
+      ],
+      [
+        "R",
+        "E"
+      ],
+      [
+        "X",
+        "T"
+      ],
+      [
+        "Ġ",
+        "TE"
+      ],
+      [
+        "ĠTE",
+        "XT"
+      ],
+      [
+        "r",
+        "e"
+      ],
+      [
+        "o",
+        "n"
+      ],
+      [
+        "co",
+        "l"
+      ],
+      [
+        ">",
+        "<"
+      ],
+      [
+        "i",
+        "on"
+      ],
+      [
+        "e",
+        "r"
+      ],
+      [
+        "al",
+        "ue"
+      ],
+      [
+        "v",
+        "alue"
+      ],
+      [
+        "c",
+        "h"
+      ],
+      [
+        "I",
+        "N"
+      ],
+      [
+        "i",
+        "d"
+      ],
+      [
+        "E",
+        "R"
+      ],
+      [
+        "Ġ",
+        "IN"
+      ],
+      [
+        "Ġ",
+        "t"
+      ],
+      [
+        "<",
+        "/"
+      ],
+      [
+        "G",
+        "ER"
+      ],
+      [
+        "L",
+        "E"
+      ],
+      [
+        "TE",
+        "GER"
+      ],
+      [
+        "RE",
+        "A"
+      ],
+      [
+        "ĠIN",
+        "TEGER"
+      ],
+      [
+        "Ġ",
+        "col"
+      ],
+      [
+        "ue",
+        "st"
+      ],
+      [
+        "n",
+        "t"
+      ],
+      [
+        "ch",
+        "e"
+      ],
+      [
+        "m",
+        "e"
+      ],
+      [
+        "m",
+        "a"
+      ],
+      [
+        "o",
+        "r"
+      ],
+      [
+        "i",
+        "n"
+      ],
+      [
+        "I",
+        "M"
+      ],
+      [
+        "c",
+        "e"
+      ],
+      [
+        "a",
+        "n"
+      ],
+      [
+        "b",
+        "l"
+      ],
+      [
+        ")",
+        ";"
+      ],
+      [
+        "A",
+        "B"
+      ],
+      [
+        "A",
+        "R"
+      ],
+      [
+        "C",
+        "REA"
+      ],
+      [
+        "E",
+        "Y"
+      ],
+      [
+        "K",
+        "EY"
+      ],
+      [
+        "P",
+        "R"
+      ],
+      [
+        "T",
+        "AB"
+      ],
+      [
+        "o",
+        "s"
+      ],
+      [
+        "q",
+        "l"
+      ],
+      [
+        "q",
+        "uest"
+      ],
+      [
+        "s",
+        "che"
+      ],
+      [
+        "s",
+        "ql"
+      ],
+      [
+        "Ġ",
+        "("
+      ],
+      [
+        "Ġ",
+        "KEY"
+      ],
+      [
+        "Ġ",
+        "PR"
+      ],
+      [
+        "Ġ",
+        "TAB"
+      ],
+      [
+        "IM",
+        "AR"
+      ],
+      [
+        "CREA",
+        "TE"
+      ],
+      [
+        "quest",
+        "ion"
+      ],
+      [
+        "sche",
+        "ma"
+      ],
+      [
+        "ĠPR",
+        "IMAR"
+      ],
+      [
+        "ĠTAB",
+        "LE"
+      ],
+      [
+        "ĠPRIMAR",
+        "Y"
+      ],
+      [
+        "Ġt",
+        "bl"
+      ],
+      [
+        "e",
+        "d"
+      ],
+      [
+        "E",
+        "RE"
+      ],
+      [
+        "i",
+        "t"
+      ],
+      [
+        "r",
+        "o"
+      ],
+      [
+        "e",
+        "n"
+      ],
+      [
+        "Ġ",
+        "c"
+      ],
+      [
+        "i",
+        "s"
+      ],
+      [
+        "d",
+        "at"
+      ],
+      [
+        "dat",
+        "a"
+      ],
+      [
+        "d",
+        "e"
+      ],
+      [
+        "st",
+        "at"
+      ],
+      [
+        "a",
+        "me"
+      ],
+      [
+        "Ġ",
+        "s"
+      ],
+      [
+        "u",
+        "r"
+      ],
+      [
+        "Ġ",
+        "p"
+      ],
+      [
+        "Ġ",
+        "re"
+      ],
+      [
+        "c",
+        "t"
+      ],
+      [
+        "er",
+        "s"
+      ],
+      [
+        "r",
+        "d"
+      ],
+      [
+        "l",
+        "e"
+      ],
+      [
+        "Ġ",
+        "f"
+      ],
+      [
+        "Ġ",
+        "a"
+      ],
+      [
+        "E",
+        "S"
+      ],
+      [
+        "k",
+        "e"
+      ],
+      [
+        "n",
+        "ame"
+      ],
+      [
+        "e",
+        "s"
+      ],
+      [
+        "l",
+        "a"
+      ],
+      [
+        "I",
+        "d"
+      ],
+      [
+        "C",
+        "T"
+      ],
+      [
+        ")",
+        ","
+      ],
+      [
+        "R",
+        "O"
+      ],
+      [
+        "o",
+        "t"
+      ],
+      [
+        "u",
+        "s"
+      ],
+      [
+        ";",
+        "</"
+      ],
+      [
+        "C",
+        "ES"
+      ],
+      [
+        "E",
+        "LE"
+      ],
+      [
+        "F",
+        "ERE"
+      ],
+      [
+        "F",
+        "RO"
+      ],
+      [
+        "N",
+        "CES"
+      ],
+      [
+        "S",
+        "ELE"
+      ],
+      [
+        "b",
+        "os"
+      ],
+      [
+        "e",
+        "os"
+      ],
+      [
+        "Ġ",
+        "RE"
+      ],
+      [
+        "Ġ",
+        "REA"
+      ],
+      [
+        "Ġ",
+        "FRO"
+      ],
+      [
+        ");",
+        "</"
+      ],
+      [
+        "FERE",
+        "NCES"
+      ],
+      [
+        "SELE",
+        "CT"
+      ],
+      [
+        "ĠRE",
+        "FERENCES"
+      ],
+      [
+        "ĠREA",
+        "L"
+      ],
+      [
+        "ĠFRO",
+        "M"
+      ],
+      [
+        "i",
+        "st"
+      ],
+      [
+        "co",
+        "rd"
+      ],
+      [
+        "cord",
+        "s"
+      ],
+      [
+        "Ġ",
+        "w"
+      ],
+      [
+        "in",
+        "g"
+      ],
+      [
+        "at",
+        "ion"
+      ],
+      [
+        "ist",
+        "r"
+      ],
+      [
+        "g",
+        "uest"
+      ],
+      [
+        "l",
+        "l"
+      ],
+      [
+        "Ġ",
+        "="
+      ],
+      [
+        "Ġ",
+        "b"
+      ],
+      [
+        "stat",
+        "us"
+      ],
+      [
+        "i",
+        "p"
+      ],
+      [
+        "Ġ",
+        "l"
+      ],
+      [
+        "ot",
+        "al"
+      ],
+      [
+        "g",
+        "istr"
+      ],
+      [
+        "e",
+        "re"
+      ],
+      [
+        "nt",
+        "s"
+      ],
+      [
+        "d",
+        "er"
+      ],
+      [
+        "re",
+        "cords"
+      ],
+      [
+        "at",
+        "e"
+      ],
+      [
+        "s",
+        "s"
+      ],
+      [
+        "H",
+        "ERE"
+      ],
+      [
+        "W",
+        "HERE"
+      ],
+      [
+        "Ġ",
+        "WHERE"
+      ],
+      [
+        "stat",
+        "e"
+      ],
+      [
+        "h",
+        "o"
+      ],
+      [
+        "a",
+        "r"
+      ],
+      [
+        "a",
+        "ct"
+      ],
+      [
+        "Ġ",
+        "co"
+      ],
+      [
+        "i",
+        "c"
+      ],
+      [
+        "Ġ",
+        "'"
+      ],
+      [
+        "ke",
+        "y"
+      ],
+      [
+        "ro",
+        "w"
+      ],
+      [
+        "u",
+        "nt"
+      ],
+      [
+        "d",
+        "in"
+      ],
+      [
+        "Ġ",
+        "is"
+      ],
+      [
+        "c",
+        "u"
+      ],
+      [
+        "Ġf",
+        "or"
+      ],
+      [
+        "n",
+        "e"
+      ],
+      [
+        "s",
+        "e"
+      ],
+      [
+        "an",
+        "d"
+      ],
+      [
+        "Ġ",
+        "e"
+      ],
+      [
+        "Ġ",
+        "or"
+      ],
+      [
+        "p",
+        "ed"
+      ],
+      [
+        "h",
+        "ip"
+      ],
+      [
+        "Ġ",
+        "O"
+      ],
+      [
+        "hip",
+        "ped"
+      ],
+      [
+        "i",
+        "ce"
+      ],
+      [
+        "re",
+        "a"
+      ],
+      [
+        "o",
+        "m"
+      ],
+      [
+        "st",
+        "om"
+      ],
+      [
+        "o",
+        "ur"
+      ],
+      [
+        "our",
+        "ce"
+      ],
+      [
+        "c",
+        "k"
+      ],
+      [
+        "che",
+        "ck"
+      ],
+      [
+        "t",
+        "otal"
+      ],
+      [
+        "h",
+        "ere"
+      ],
+      [
+        "Ġ",
+        "and"
+      ],
+      [
+        "v",
+        "e"
+      ],
+      [
+        "an",
+        "ce"
+      ],
+      [
+        "gistr",
+        "ation"
+      ],
+      [
+        "Ġw",
+        "here"
+      ],
+      [
+        "t",
+        "en"
+      ],
+      [
+        "at",
+        "ten"
+      ],
+      [
+        "en",
+        "ro"
+      ],
+      [
+        "or",
+        "y"
+      ],
+      [
+        "ke",
+        "t"
+      ],
+      [
+        "Ġ",
+        "in"
+      ],
+      [
+        "v",
+        "is"
+      ],
+      [
+        "vis",
+        "it"
+      ],
+      [
+        "u",
+        "de"
+      ],
+      [
+        "st",
+        "ude"
+      ],
+      [
+        "o",
+        "an"
+      ],
+      [
+        "r",
+        "on"
+      ],
+      [
+        "at",
+        "ron"
+      ],
+      [
+        "Ġ",
+        ">"
+      ],
+      [
+        "it",
+        "y"
+      ],
+      [
+        "nt",
+        "act"
+      ],
+      [
+        "m",
+        "b"
+      ],
+      [
+        "ma",
+        "r"
+      ],
+      [
+        "Ġ",
+        "guest"
+      ],
+      [
+        "g",
+        "ory"
+      ],
+      [
+        "ate",
+        "gory"
+      ],
+      [
+        "t",
+        "ic"
+      ],
+      [
+        "it",
+        "h"
+      ],
+      [
+        "Ġw",
+        "ith"
+      ],
+      [
+        "stom",
+        "er"
+      ],
+      [
+        "e",
+        "e"
+      ],
+      [
+        "me",
+        "mb"
+      ],
+      [
+        "re",
+        "at"
+      ],
+      [
+        "or",
+        "row"
+      ],
+      [
+        "p",
+        "en"
+      ],
+      [
+        "Ġ",
+        "3"
+      ],
+      [
+        "ion",
+        "s"
+      ],
+      [
+        "k",
+        "ing"
+      ],
+      [
+        "atten",
+        "de"
+      ],
+      [
+        "Ġs",
+        "ource"
+      ],
+      [
+        "mar",
+        "k"
+      ],
+      [
+        "a",
+        "d"
+      ],
+      [
+        "Ġt",
+        "h"
+      ],
+      [
+        "Ġ",
+        "o"
+      ],
+      [
+        "co",
+        "de"
+      ],
+      [
+        "m",
+        "o"
+      ],
+      [
+        "mo",
+        "unt"
+      ],
+      [
+        "a",
+        "b"
+      ],
+      [
+        "'",
+        ";</"
+      ],
+      [
+        "t",
+        "ur"
+      ],
+      [
+        "tur",
+        "n"
+      ],
+      [
+        "Ġ",
+        "status"
+      ],
+      [
+        "p",
+        "le"
+      ],
+      [
+        "ĠO",
+        "R"
+      ],
+      [
+        "cu",
+        "l"
+      ],
+      [
+        "Ġ",
+        "1"
+      ],
+      [
+        "Ġ",
+        "4"
+      ],
+      [
+        "Ġc",
+        "ategory"
+      ],
+      [
+        "c",
+        "co"
+      ],
+      [
+        "stude",
+        "nt"
+      ],
+      [
+        "din",
+        "er"
+      ],
+      [
+        "a",
+        "nt"
+      ],
+      [
+        "Ġ",
+        "d"
+      ],
+      [
+        "I",
+        "T"
+      ],
+      [
+        "L",
+        "IM"
+      ],
+      [
+        "Ġ",
+        "LIM"
+      ],
+      [
+        "ĠLIM",
+        "IT"
+      ],
+      [
+        "o",
+        "o"
+      ],
+      [
+        "oo",
+        "king"
+      ],
+      [
+        "l",
+        "i"
+      ],
+      [
+        "Ġl",
+        "i"
+      ],
+      [
+        "Ġ",
+        "m"
+      ],
+      [
+        "Ġ",
+        "check"
+      ],
+      [
+        "Ġco",
+        "ntact"
+      ],
+      [
+        "N",
+        "ame"
+      ],
+      [
+        "m",
+        "is"
+      ],
+      [
+        "mis",
+        "s"
+      ],
+      [
+        "Ġm",
+        "at"
+      ],
+      [
+        "Ġ",
+        "ne"
+      ],
+      [
+        "Ġl",
+        "oan"
+      ],
+      [
+        "ot",
+        "e"
+      ],
+      [
+        "er",
+        "v"
+      ],
+      [
+        "la",
+        "r"
+      ],
+      [
+        "p",
+        "la"
+      ],
+      [
+        "memb",
+        "er"
+      ],
+      [
+        "a",
+        "ss"
+      ],
+      [
+        "s",
+        "hipped"
+      ],
+      [
+        "Ġs",
+        "hipped"
+      ],
+      [
+        "ce",
+        "ss"
+      ],
+      [
+        "ro",
+        "cess"
+      ],
+      [
+        "rocess",
+        "ed"
+      ],
+      [
+        "an",
+        "ne"
+      ],
+      [
+        "anne",
+        "l"
+      ],
+      [
+        "s",
+        "es"
+      ],
+      [
+        "li",
+        "e"
+      ],
+      [
+        "a",
+        "rea"
+      ],
+      [
+        "i",
+        "r"
+      ],
+      [
+        "cul",
+        "ation"
+      ],
+      [
+        "ir",
+        "culation"
+      ],
+      [
+        "Ġ",
+        "enro"
+      ],
+      [
+        "S",
+        "t"
+      ],
+      [
+        "Ġ",
+        "state"
+      ],
+      [
+        "Ġor",
+        "der"
+      ],
+      [
+        "c",
+        "ity"
+      ],
+      [
+        "u",
+        "ll"
+      ],
+      [
+        "ar",
+        "tic"
+      ],
+      [
+        "artic",
+        "ip"
+      ],
+      [
+        "mark",
+        "s"
+      ],
+      [
+        "d",
+        "ers"
+      ],
+      [
+        "i",
+        "l"
+      ],
+      [
+        "p",
+        "il"
+      ],
+      [
+        "u",
+        "pil"
+      ],
+      [
+        "K",
+        "e"
+      ],
+      [
+        "Ke",
+        "y"
+      ],
+      [
+        "Ġ",
+        "visit"
+      ],
+      [
+        "Ġt",
+        "ic"
+      ],
+      [
+        "Ġtic",
+        "ket"
+      ],
+      [
+        "cu",
+        "stomer"
+      ],
+      [
+        "attende",
+        "e"
+      ],
+      [
+        "l",
+        "le"
+      ],
+      [
+        "p",
+        "atron"
+      ],
+      [
+        "o",
+        "lar"
+      ],
+      [
+        "ch",
+        "olar"
+      ],
+      [
+        "Ġre",
+        "gistration"
+      ],
+      [
+        "i",
+        "ve"
+      ],
+      [
+        "la",
+        "g"
+      ],
+      [
+        "reat",
+        "ed"
+      ],
+      [
+        "Ġc",
+        "u"
+      ],
+      [
+        "m",
+        "ple"
+      ],
+      [
+        "t",
+        "e"
+      ],
+      [
+        "ll",
+        "ed"
+      ],
+      [
+        "ance",
+        "lled"
+      ],
+      [
+        "Ġ1",
+        "0"
+      ],
+      [
+        "mple",
+        "te"
+      ],
+      [
+        "f",
+        "ere"
+      ],
+      [
+        "le",
+        "ar"
+      ],
+      [
+        "lear",
+        "n"
+      ],
+      [
+        "Ġ",
+        "row"
+      ],
+      [
+        "Ġrow",
+        "s"
+      ],
+      [
+        "Ġ",
+        "g"
+      ],
+      [
+        "cco",
+        "unt"
+      ],
+      [
+        "R",
+        "e"
+      ],
+      [
+        "Re",
+        "cords"
+      ],
+      [
+        "o",
+        "st"
+      ],
+      [
+        "ho",
+        "me"
+      ],
+      [
+        "ost",
+        "al"
+      ],
+      [
+        "re",
+        "gistration"
+      ],
+      [
+        "r",
+        "an"
+      ],
+      [
+        "o",
+        "ice"
+      ],
+      [
+        "v",
+        "oice"
+      ],
+      [
+        "ro",
+        "m"
+      ],
+      [
+        "Ġf",
+        "rom"
+      ],
+      [
+        "re",
+        "turn"
+      ],
+      [
+        "g",
+        "ion"
+      ],
+      [
+        "ll",
+        "me"
+      ],
+      [
+        "le",
+        "g"
+      ],
+      [
+        "a",
+        "rd"
+      ],
+      [
+        "ho",
+        "l"
+      ],
+      [
+        "ard",
+        "hol"
+      ],
+      [
+        "n",
+        "ce"
+      ],
+      [
+        "fere",
+        "nce"
+      ],
+      [
+        "g",
+        "e"
+      ],
+      [
+        "is",
+        "pla"
+      ],
+      [
+        "ispla",
+        "y"
+      ],
+      [
+        "a",
+        "se"
+      ],
+      [
+        "Ġo",
+        "f"
+      ],
+      [
+        "Ġt",
+        "ab"
+      ],
+      [
+        "Ġne",
+        "ed"
+      ],
+      [
+        "s",
+        "erv"
+      ],
+      [
+        "che",
+        "s"
+      ],
+      [
+        "Ġmat",
+        "ches"
+      ],
+      [
+        "Ġ3",
+        "0"
+      ],
+      [
+        "Ġ",
+        "al"
+      ],
+      [
+        "Ġal",
+        "l"
+      ],
+      [
+        "n",
+        "ote"
+      ],
+      [
+        "q",
+        "u"
+      ],
+      [
+        "al",
+        "s"
+      ],
+      [
+        "Ġe",
+        "qu"
+      ],
+      [
+        "Ġequ",
+        "als"
+      ],
+      [
+        "f",
+        "ee"
+      ],
+      [
+        "Ġb",
+        "orrow"
+      ],
+      [
+        "Ġth",
+        "e"
+      ],
+      [
+        "m",
+        "it"
+      ],
+      [
+        "Ġli",
+        "mit"
+      ],
+      [
+        "al",
+        "e"
+      ],
+      [
+        "a",
+        "nts"
+      ],
+      [
+        "Ġp",
+        "atron"
+      ],
+      [
+        "u",
+        "y"
+      ],
+      [
+        "J",
+        "O"
+      ],
+      [
+        "N",
+        "ER"
+      ],
+      [
+        "Ġ",
+        "A"
+      ],
+      [
+        "Ġ",
+        "JO"
+      ],
+      [
+        "ĠIN",
+        "NER"
+      ],
+      [
+        "ĠO",
+        "N"
+      ],
+      [
+        "ĠJO",
+        "IN"
+      ],
+      [
+        "Ġp",
+        "rocessed"
+      ],
+      [
+        "Ġ",
+        "din"
+      ],
+      [
+        "r",
+        "ice"
+      ],
+      [
+        "Ġguest",
+        "s"
+      ],
+      [
+        "Ġb",
+        "ooking"
+      ],
+      [
+        "w",
+        "h"
+      ],
+      [
+        "o",
+        "u"
+      ],
+      [
+        "ou",
+        "t"
+      ],
+      [
+        "Ġre",
+        "marks"
+      ],
+      [
+        "Ġc",
+        "reated"
+      ],
+      [
+        "serv",
+        "ation"
+      ],
+      [
+        "ch",
+        "annel"
+      ],
+      [
+        "guest",
+        "s"
+      ],
+      [
+        "b",
+        "orrow"
+      ],
+      [
+        "T",
+        "otal"
+      ],
+      [
+        "or",
+        "der"
+      ],
+      [
+        "ct",
+        "ive"
+      ],
+      [
+        "Ġa",
+        "ctive"
+      ],
+      [
+        "s",
+        "act"
+      ],
+      [
+        "ran",
+        "sact"
+      ],
+      [
+        "ur",
+        "ch"
+      ],
+      [
+        "la",
+        "ss"
+      ],
+      [
+        "miss",
+        "ion"
+      ],
+      [
+        "Ġco",
+        "ur"
+      ],
+      [
+        "f",
+        "lag"
+      ],
+      [
+        "h",
+        "ase"
+      ],
+      [
+        "a",
+        "ccount"
+      ],
+      [
+        "Ġt",
+        "o"
+      ],
+      [
+        "Ġc",
+        "irculation"
+      ],
+      [
+        "Ġa",
+        "mount"
+      ],
+      [
+        "i",
+        "ct"
+      ],
+      [
+        "istr",
+        "ict"
+      ],
+      [
+        "articip",
+        "ant"
+      ],
+      [
+        "a",
+        "mount"
+      ],
+      [
+        "l",
+        "oan"
+      ],
+      [
+        "de",
+        "leg"
+      ],
+      [
+        "Ġ",
+        "2"
+      ],
+      [
+        "Ġ",
+        "D"
+      ],
+      [
+        "Ġ4",
+        "0"
+      ],
+      [
+        "Ġa",
+        "d"
+      ],
+      [
+        "tic",
+        "ket"
+      ],
+      [
+        "en",
+        "d"
+      ],
+      [
+        "Ġ",
+        "home"
+      ],
+      [
+        "Ġp",
+        "ostal"
+      ],
+      [
+        "Ġre",
+        "gion"
+      ],
+      [
+        "Ġcu",
+        "stomer"
+      ],
+      [
+        "Ġpatron",
+        "s"
+      ],
+      [
+        "a",
+        "bl"
+      ],
+      [
+        "id",
+        "e"
+      ],
+      [
+        "es",
+        "ide"
+      ],
+      [
+        "abl",
+        "eside"
+      ],
+      [
+        "Ġre",
+        "ference"
+      ],
+      [
+        "ct",
+        "ions"
+      ],
+      [
+        "Ġp",
+        "ass"
+      ],
+      [
+        "Ġenro",
+        "llme"
+      ],
+      [
+        "gistr",
+        "ant"
+      ],
+      [
+        "ce",
+        "me"
+      ],
+      [
+        "p",
+        "upil"
+      ],
+      [
+        "St",
+        "ate"
+      ],
+      [
+        "Ġa",
+        "s"
+      ],
+      [
+        "reat",
+        "er"
+      ],
+      [
+        "Ġth",
+        "an"
+      ],
+      [
+        "Ġg",
+        "reater"
+      ],
+      [
+        "B",
+        "Y"
+      ],
+      [
+        "N",
+        "D"
+      ],
+      [
+        "Ġ",
+        "BY"
+      ],
+      [
+        "ĠA",
+        "ND"
+      ],
+      [
+        "x",
+        "ce"
+      ],
+      [
+        "ed",
+        "s"
+      ],
+      [
+        "Ġe",
+        "xce"
+      ],
+      [
+        "Ġexce",
+        "eds"
+      ],
+      [
+        "b",
+        "o"
+      ],
+      [
+        "Ġa",
+        "bo"
+      ],
+      [
+        "Ġabo",
+        "ve"
+      ],
+      [
+        "c",
+        "lie"
+      ],
+      [
+        "Ġsource",
+        "C"
+      ],
+      [
+        "s",
+        "cholar"
+      ],
+      [
+        "al",
+        "ance"
+      ],
+      [
+        "s",
+        "ource"
+      ],
+      [
+        "learn",
+        "er"
+      ],
+      [
+        "Ġd",
+        "isplay"
+      ],
+      [
+        "Ġf",
+        "ull"
+      ],
+      [
+        "co",
+        "ntact"
+      ],
+      [
+        "enro",
+        "lle"
+      ],
+      [
+        "o",
+        "pen"
+      ],
+      [
+        "Ġ",
+        "5"
+      ],
+      [
+        "Ġ",
+        "6"
+      ],
+      [
+        "Ġo",
+        "pen"
+      ],
+      [
+        "t",
+        "ab"
+      ],
+      [
+        "Ġtab",
+        "s"
+      ],
+      [
+        "Ġc",
+        "ity"
+      ],
+      [
+        "Ġs",
+        "e"
+      ],
+      [
+        "stude",
+        "nts"
+      ],
+      [
+        "attende",
+        "es"
+      ],
+      [
+        "Ġin",
+        "voice"
+      ],
+      [
+        "a",
+        "ses"
+      ],
+      [
+        "out",
+        "s"
+      ],
+      [
+        "urch",
+        "ases"
+      ],
+      [
+        "co",
+        "ur"
+      ],
+      [
+        "d",
+        "it"
+      ],
+      [
+        "re",
+        "dit"
+      ],
+      [
+        "Ġf",
+        "ee"
+      ],
+      [
+        "Ġd",
+        "istrict"
+      ],
+      [
+        "A",
+        "t"
+      ],
+      [
+        "c",
+        "ancelled"
+      ],
+      [
+        "co",
+        "mplete"
+      ],
+      [
+        "Ġc",
+        "ancelled"
+      ],
+      [
+        "Ġco",
+        "mplete"
+      ],
+      [
+        "p",
+        "ass"
+      ],
+      [
+        "Ġc",
+        "lie"
+      ],
+      [
+        "re",
+        "gistrant"
+      ],
+      [
+        "f",
+        "ull"
+      ],
+      [
+        "p",
+        "hase"
+      ],
+      [
+        "rea",
+        "der"
+      ],
+      [
+        "p",
+        "rice"
+      ],
+      [
+        "Ġregistration",
+        "s"
+      ],
+      [
+        "me",
+        "al"
+      ],
+      [
+        "gistr",
+        "ants"
+      ],
+      [
+        "Ġ",
+        "name"
+      ],
+      [
+        "ardhol",
+        "der"
+      ],
+      [
+        "memb",
+        "ers"
+      ],
+      [
+        "Ġre",
+        "turn"
+      ],
+      [
+        "Ġl",
+        "end"
+      ],
+      [
+        "p",
+        "p"
+      ],
+      [
+        "l",
+        "se"
+      ],
+      [
+        "Ġe",
+        "lse"
+      ],
+      [
+        "b",
+        "ooking"
+      ],
+      [
+        "miss",
+        "ions"
+      ],
+      [
+        "b",
+        "uy"
+      ],
+      [
+        "clie",
+        "nt"
+      ],
+      [
+        "s",
+        "ho"
+      ],
+      [
+        "o",
+        "de"
+      ],
+      [
+        "Ġdin",
+        "ers"
+      ],
+      [
+        "at",
+        "us"
+      ],
+      [
+        "St",
+        "atus"
+      ],
+      [
+        "Ġenro",
+        "lle"
+      ],
+      [
+        "visit",
+        "or"
+      ],
+      [
+        "s",
+        "ale"
+      ],
+      [
+        "al",
+        "es"
+      ],
+      [
+        "ing",
+        "s"
+      ],
+      [
+        "ransact",
+        "ions"
+      ],
+      [
+        "Ġse",
+        "ctions"
+      ],
+      [
+        "f",
+        "in"
+      ],
+      [
+        "stom",
+        "ers"
+      ],
+      [
+        "ardhol",
+        "ders"
+      ],
+      [
+        "D",
+        "ER"
+      ],
+      [
+        "Ġ",
+        "M"
+      ],
+      [
+        "ES",
+        "C"
+      ],
+      [
+        "ĠOR",
+        "DER"
+      ],
+      [
+        "ĠD",
+        "ESC"
+      ],
+      [
+        "Ġ",
+        "student"
+      ],
+      [
+        "in",
+        "voice"
+      ],
+      [
+        "p",
+        "articipant"
+      ],
+      [
+        "Ġs",
+        "cholar"
+      ],
+      [
+        "Ġlimit",
+        "ed"
+      ],
+      [
+        "learn",
+        "ers"
+      ],
+      [
+        "l",
+        "y"
+      ],
+      [
+        "Ġ",
+        "on"
+      ],
+      [
+        "Ġreturn",
+        "ing"
+      ],
+      [
+        "Ġon",
+        "ly"
+      ],
+      [
+        "Ġre",
+        "servation"
+      ],
+      [
+        "enrolle",
+        "e"
+      ],
+      [
+        "d",
+        "ance"
+      ],
+      [
+        "atten",
+        "dance"
+      ],
+      [
+        "Ġbooking",
+        "s"
+      ],
+      [
+        "Ġc",
+        "lass"
+      ],
+      [
+        "Ġp",
+        "upil"
+      ],
+      [
+        "i",
+        "ch"
+      ],
+      [
+        "wh",
+        "ich"
+      ],
+      [
+        "co",
+        "re"
+      ],
+      [
+        "ch",
+        "ar"
+      ],
+      [
+        "char",
+        "ge"
+      ],
+      [
+        "Ġb",
+        "ad"
+      ],
+      [
+        "u",
+        "nts"
+      ],
+      [
+        "Ġs",
+        "ale"
+      ],
+      [
+        "Ġcour",
+        "ses"
+      ],
+      [
+        "ceme",
+        "nts"
+      ],
+      [
+        "Ġlend",
+        "s"
+      ],
+      [
+        "pp",
+        "ers"
+      ],
+      [
+        "Ġre",
+        "ad"
+      ],
+      [
+        "Ġread",
+        "ers"
+      ],
+      [
+        "e",
+        "o"
+      ],
+      [
+        "ve",
+        "nt"
+      ],
+      [
+        "eo",
+        "ple"
+      ],
+      [
+        "Ġ",
+        "members"
+      ],
+      [
+        "Ġb",
+        "y"
+      ],
+      [
+        "(",
+        "*"
+      ],
+      [
+        "C",
+        "O"
+      ],
+      [
+        "N",
+        "T"
+      ],
+      [
+        "U",
+        "NT"
+      ],
+      [
+        "Ġ",
+        "CO"
+      ],
+      [
+        "ĠCO",
+        "UNT"
+      ],
+      [
+        "c",
+        "ategory"
+      ],
+      [
+        "ad",
+        "mission"
+      ],
+      [
+        "Ġp",
+        "la"
+      ],
+      [
+        "Ġcirculation",
+        "s"
+      ],
+      [
+        "i",
+        "ll"
+      ],
+      [
+        "pen",
+        "d"
+      ],
+      [
+        "Ġ",
+        "students"
+      ],
+      [
+        "Ġclie",
+        "nts"
+      ],
+      [
+        "c",
+        "irculation"
+      ],
+      [
+        "wh",
+        "at"
+      ],
+      [
+        "deleg",
+        "ate"
+      ],
+      [
+        "Ġt",
+        "otal"
+      ],
+      [
+        "Ġb",
+        "uy"
+      ],
+      [
+        "Ġ",
+        "diner"
+      ],
+      [
+        "st",
+        "and"
+      ],
+      [
+        "stand",
+        "ing"
+      ],
+      [
+        "c",
+        "ardholder"
+      ],
+      [
+        "t",
+        "y"
+      ],
+      [
+        "al",
+        "ty"
+      ],
+      [
+        "g",
+        "es"
+      ],
+      [
+        "Ġp",
+        "urchases"
+      ],
+      [
+        "Ġcheck",
+        "s"
+      ],
+      [
+        "Ġcheck",
+        "outs"
+      ],
+      [
+        "Ġvisit",
+        "s"
+      ],
+      [
+        "Ġticket",
+        "s"
+      ],
+      [
+        "Ġcu",
+        "stomers"
+      ],
+      [
+        "articip",
+        "ants"
+      ],
+      [
+        "Ġre",
+        "gistrants"
+      ],
+      [
+        "Ġc",
+        "ardholders"
+      ],
+      [
+        "Ġt",
+        "ableside"
+      ],
+      [
+        "Ġdin",
+        "ing"
+      ],
+      [
+        "h",
+        "annel"
+      ],
+      [
+        "ĠsourceC",
+        "hannel"
+      ],
+      [
+        "borrow",
+        "er"
+      ],
+      [
+        "Ġvisit",
+        "or"
+      ],
+      [
+        "l",
+        "t"
+      ],
+      [
+        "s",
+        "u"
+      ],
+      [
+        "su",
+        "lt"
+      ],
+      [
+        "d",
+        "isplay"
+      ],
+      [
+        "Ġt",
+        "ransactions"
+      ],
+      [
+        "cco",
+        "unts"
+      ],
+      [
+        "Ġborrow",
+        "ings"
+      ],
+      [
+        "Ġpass",
+        "es"
+      ],
+      [
+        "Ġscholar",
+        "s"
+      ],
+      [
+        "Ġborrow",
+        "ers"
+      ],
+      [
+        "Ġ",
+        "learners"
+      ],
+      [
+        "Ġad",
+        "mission"
+      ],
+      [
+        "cour",
+        "se"
+      ],
+      [
+        "fin",
+        "d"
+      ],
+      [
+        "re",
+        "servation"
+      ],
+      [
+        "sho",
+        "w"
+      ],
+      [
+        "l",
+        "ist"
+      ],
+      [
+        "Ġenrolle",
+        "es"
+      ],
+      [
+        "Ġad",
+        "missions"
+      ],
+      [
+        "Ġbad",
+        "ges"
+      ],
+      [
+        "Ġpla",
+        "cements"
+      ],
+      [
+        "p",
+        "ostal"
+      ],
+      [
+        "enro",
+        "llme"
+      ],
+      [
+        "Ġcour",
+        "se"
+      ],
+      [
+        "Ġenrollme",
+        "nt"
+      ],
+      [
+        "a",
+        "de"
+      ],
+      [
+        "p",
+        "a"
+      ],
+      [
+        "r",
+        "ade"
+      ],
+      [
+        "buy",
+        "er"
+      ],
+      [
+        "Ġ",
+        "member"
+      ],
+      [
+        "c",
+        "lass"
+      ],
+      [
+        "re",
+        "gion"
+      ],
+      [
+        "at",
+        "es"
+      ],
+      [
+        "deleg",
+        "ates"
+      ],
+      [
+        "Ġe",
+        "vent"
+      ],
+      [
+        "Ġ",
+        "attendees"
+      ],
+      [
+        "e",
+        "ll"
+      ],
+      [
+        "Ġw",
+        "ell"
+      ],
+      [
+        "Ġs",
+        "ales"
+      ],
+      [
+        "Ġloan",
+        "s"
+      ],
+      [
+        "registration",
+        "s"
+      ],
+      [
+        "Ġenrollme",
+        "nts"
+      ],
+      [
+        "Ġreservation",
+        "s"
+      ],
+      [
+        "b",
+        "alance"
+      ],
+      [
+        "A",
+        "rea"
+      ],
+      [
+        "Ġ",
+        "attendee"
+      ],
+      [
+        "F",
+        "lag"
+      ],
+      [
+        "re",
+        "ference"
+      ],
+      [
+        "Ġactive",
+        "Flag"
+      ],
+      [
+        "b",
+        "r"
+      ],
+      [
+        "ar",
+        "y"
+      ],
+      [
+        "br",
+        "ary"
+      ],
+      [
+        "Ġpupil",
+        "s"
+      ],
+      [
+        "Ġc",
+        "redit"
+      ],
+      [
+        "c",
+        "al"
+      ],
+      [
+        "cul",
+        "ate"
+      ],
+      [
+        "cal",
+        "culate"
+      ],
+      [
+        "Ġor",
+        "ders"
+      ],
+      [
+        "Ġ",
+        "attendance"
+      ],
+      [
+        "Ġ",
+        "standing"
+      ],
+      [
+        "c",
+        "y"
+      ],
+      [
+        "c",
+        "le"
+      ],
+      [
+        "e",
+        "cy"
+      ],
+      [
+        "f",
+        "ecy"
+      ],
+      [
+        "fecy",
+        "cle"
+      ],
+      [
+        "p",
+        "rocessed"
+      ],
+      [
+        "ch",
+        "ing"
+      ],
+      [
+        "Ġmat",
+        "ching"
+      ],
+      [
+        "N",
+        "ote"
+      ],
+      [
+        "Ġcontact",
+        "Note"
+      ],
+      [
+        "Ġa",
+        "ccount"
+      ],
+      [
+        "Ġ",
+        "meal"
+      ],
+      [
+        "Ġb",
+        "alance"
+      ],
+      [
+        "ransact",
+        "ion"
+      ],
+      [
+        "j",
+        "o"
+      ],
+      [
+        "Ġ",
+        "jo"
+      ],
+      [
+        "in",
+        "ed"
+      ],
+      [
+        "Ġjo",
+        "ined"
+      ],
+      [
+        "p",
+        "eople"
+      ],
+      [
+        "t",
+        "ableside"
+      ],
+      [
+        "Ġp",
+        "articipants"
+      ],
+      [
+        "in",
+        "king"
+      ],
+      [
+        "Ġl",
+        "inking"
+      ],
+      [
+        "Ġbuy",
+        "ers"
+      ],
+      [
+        "F",
+        "ee"
+      ],
+      [
+        "act",
+        "ive"
+      ],
+      [
+        "din",
+        "ing"
+      ],
+      [
+        "enrollme",
+        "nt"
+      ],
+      [
+        "ct",
+        "ion"
+      ],
+      [
+        "Ġ",
+        "mark"
+      ],
+      [
+        "en",
+        "alty"
+      ],
+      [
+        "Ġp",
+        "rice"
+      ],
+      [
+        "Ġp",
+        "enalty"
+      ],
+      [
+        "re",
+        "marks"
+      ],
+      [
+        "a",
+        "der"
+      ],
+      [
+        "Ġre",
+        "ader"
+      ],
+      [
+        "Ġs",
+        "erv"
+      ],
+      [
+        "Ġserv",
+        "ice"
+      ],
+      [
+        "Ġprocessed",
+        "At"
+      ],
+      [
+        "Ġs",
+        "ho"
+      ],
+      [
+        "Ġsho",
+        "ppers"
+      ],
+      [
+        "Ġvisitor",
+        "s"
+      ],
+      [
+        "Ġa",
+        "ccounts"
+      ],
+      [
+        "Ġp",
+        "articipant"
+      ],
+      [
+        "pass",
+        "es"
+      ],
+      [
+        "leg",
+        "al"
+      ],
+      [
+        "C",
+        "ity"
+      ],
+      [
+        "c",
+        "reated"
+      ],
+      [
+        "Ġ",
+        "charge"
+      ],
+      [
+        "Ġcreated",
+        "At"
+      ],
+      [
+        "Ġ",
+        "delegates"
+      ],
+      [
+        "patron",
+        "s"
+      ],
+      [
+        "ĠsourceC",
+        "ode"
+      ],
+      [
+        "Ġinvoice",
+        "s"
+      ],
+      [
+        "r",
+        "it"
+      ],
+      [
+        "er",
+        "rit"
+      ],
+      [
+        "ran",
+        "ch"
+      ],
+      [
+        "errit",
+        "ory"
+      ],
+      [
+        "Ġs",
+        "core"
+      ],
+      [
+        "Ġre",
+        "sult"
+      ],
+      [
+        "C",
+        "ode"
+      ],
+      [
+        "Ġreference",
+        "Code"
+      ],
+      [
+        "c",
+        "redit"
+      ],
+      [
+        "A",
+        "X"
+      ],
+      [
+        "I",
+        "S"
+      ],
+      [
+        "S",
+        "U"
+      ],
+      [
+        "T",
+        "IN"
+      ],
+      [
+        "V",
+        "G"
+      ],
+      [
+        "Ġ",
+        "SU"
+      ],
+      [
+        "Ġa",
+        "v"
+      ],
+      [
+        "Ġli",
+        "brary"
+      ],
+      [
+        "Ġ10",
+        "0"
+      ],
+      [
+        "ĠA",
+        "VG"
+      ],
+      [
+        "ĠD",
+        "IS"
+      ],
+      [
+        "Ġ6",
+        "0"
+      ],
+      [
+        "ĠM",
+        "IN"
+      ],
+      [
+        "ĠM",
+        "AX"
+      ],
+      [
+        "(*",
+        ")"
+      ],
+      [
+        "TIN",
+        "CT"
+      ],
+      [
+        "ĠSU",
+        "M"
+      ],
+      [
+        "ĠDIS",
+        "TINCT"
+      ],
+      [
+        "ceme",
+        "nt"
+      ],
+      [
+        "Ġhome",
+        "City"
+      ],
+      [
+        "Ġdisplay",
+        "Name"
+      ],
+      [
+        "in",
+        "e"
+      ],
+      [
+        "Ġs",
+        "pend"
+      ],
+      [
+        "Ġf",
+        "ine"
+      ],
+      [
+        "Ġco",
+        "st"
+      ],
+      [
+        "V",
+        "alue"
+      ],
+      [
+        "Ġpostal",
+        "Area"
+      ],
+      [
+        "Ġb",
+        "ill"
+      ],
+      [
+        "mar",
+        "ket"
+      ],
+      [
+        "urch",
+        "ase"
+      ],
+      [
+        "t",
+        "ransaction"
+      ],
+      [
+        "tab",
+        "s"
+      ],
+      [
+        "Ġfull",
+        "Name"
+      ],
+      [
+        "d",
+        "ue"
+      ],
+      [
+        "v",
+        "en"
+      ],
+      [
+        "ven",
+        "ue"
+      ],
+      [
+        "d",
+        "istrict"
+      ],
+      [
+        "pupil",
+        "s"
+      ],
+      [
+        "Ġp",
+        "hase"
+      ],
+      [
+        "Ġli",
+        "fecycle"
+      ],
+      [
+        "se",
+        "ction"
+      ],
+      [
+        "l",
+        "end"
+      ],
+      [
+        "se",
+        "ctions"
+      ],
+      [
+        "cour",
+        "ses"
+      ],
+      [
+        "s",
+        "core"
+      ],
+      [
+        "learner",
+        "Id"
+      ],
+      [
+        "check",
+        "out"
+      ],
+      [
+        "g",
+        "pa"
+      ],
+      [
+        "b",
+        "ill"
+      ],
+      [
+        "us",
+        "ers"
+      ],
+      [
+        "scholar",
+        "s"
+      ],
+      [
+        "rea",
+        "ders"
+      ],
+      [
+        "Ġguest",
+        "Records"
+      ],
+      [
+        "Ġcheck",
+        "Total"
+      ],
+      [
+        "Ġne",
+        "t"
+      ],
+      [
+        "Ġg",
+        "rade"
+      ],
+      [
+        "G",
+        "RO"
+      ],
+      [
+        "U",
+        "P"
+      ],
+      [
+        "Ġ",
+        "GRO"
+      ],
+      [
+        "(*",
+        "),"
+      ],
+      [
+        "ĠGRO",
+        "UP"
+      ],
+      [
+        "pla",
+        "cement"
+      ],
+      [
+        "Ġbooking",
+        "Status"
+      ],
+      [
+        "p",
+        "urchases"
+      ],
+      [
+        "check",
+        "outs"
+      ],
+      [
+        "Ġorder",
+        "Records"
+      ],
+      [
+        "Ġ",
+        "legal"
+      ],
+      [
+        "s",
+        "pend"
+      ],
+      [
+        "b",
+        "ad"
+      ],
+      [
+        "Ġtab",
+        "Total"
+      ],
+      [
+        "a",
+        "m"
+      ],
+      [
+        "b",
+        "or"
+      ],
+      [
+        "g",
+        "h"
+      ],
+      [
+        "i",
+        "gh"
+      ],
+      [
+        "o",
+        "d"
+      ],
+      [
+        "p",
+        "us"
+      ],
+      [
+        "ho",
+        "od"
+      ],
+      [
+        "am",
+        "pus"
+      ],
+      [
+        "bor",
+        "hood"
+      ],
+      [
+        "igh",
+        "borhood"
+      ],
+      [
+        "buy",
+        "ers"
+      ],
+      [
+        "Ġ",
+        "lar"
+      ],
+      [
+        "ge",
+        "st"
+      ],
+      [
+        "Ġlar",
+        "gest"
+      ],
+      [
+        "m",
+        "al"
+      ],
+      [
+        "Ġs",
+        "mal"
+      ],
+      [
+        "le",
+        "st"
+      ],
+      [
+        "Ġsmal",
+        "lest"
+      ],
+      [
+        "p",
+        "urchase"
+      ],
+      [
+        "guest",
+        "Id"
+      ],
+      [
+        "a",
+        "ge"
+      ],
+      [
+        "er",
+        "age"
+      ],
+      [
+        "Ġav",
+        "erage"
+      ],
+      [
+        "g",
+        "rade"
+      ],
+      [
+        "Ġb",
+        "ranch"
+      ],
+      [
+        "Ġg",
+        "pa"
+      ],
+      [
+        "borrow",
+        "ing"
+      ],
+      [
+        "s",
+        "ales"
+      ],
+      [
+        "visit",
+        "s"
+      ],
+      [
+        "ad",
+        "missions"
+      ],
+      [
+        "Ġticket",
+        "Records"
+      ],
+      [
+        "loan",
+        "s"
+      ],
+      [
+        "booking",
+        "s"
+      ],
+      [
+        "Ġ",
+        "ma"
+      ],
+      [
+        "serv",
+        "ice"
+      ],
+      [
+        "enrolle",
+        "es"
+      ],
+      [
+        "clie",
+        "nts"
+      ],
+      [
+        "sho",
+        "ppers"
+      ],
+      [
+        "borrow",
+        "ers"
+      ],
+      [
+        "Ġt",
+        "erritory"
+      ],
+      [
+        "ne",
+        "t"
+      ],
+      [
+        "Ġenrolle",
+        "e"
+      ],
+      [
+        "or",
+        "ders"
+      ],
+      [
+        "check",
+        "s"
+      ],
+      [
+        "ticket",
+        "s"
+      ],
+      [
+        "invoice",
+        "s"
+      ],
+      [
+        "Ġclass",
+        "Records"
+      ],
+      [
+        "Ġdining",
+        "Records"
+      ],
+      [
+        "Ġre",
+        "gistrant"
+      ],
+      [
+        "Ġorder",
+        "State"
+      ],
+      [
+        "attendee",
+        "Key"
+      ],
+      [
+        "client",
+        "Id"
+      ],
+      [
+        "Ġenrollment",
+        "State"
+      ],
+      [
+        "n",
+        "u"
+      ],
+      [
+        "Ġ",
+        "nu"
+      ],
+      [
+        "mb",
+        "er"
+      ],
+      [
+        "Ġnu",
+        "mber"
+      ],
+      [
+        "bad",
+        "ge"
+      ],
+      [
+        "Ġcontact",
+        "Name"
+      ],
+      [
+        "D",
+        "ue"
+      ],
+      [
+        "re",
+        "gistrants"
+      ],
+      [
+        "Ġclie",
+        "nt"
+      ],
+      [
+        "U",
+        "s"
+      ],
+      [
+        "Ġlibrary",
+        "Us"
+      ],
+      [
+        "ĠlibraryUs",
+        "ers"
+      ],
+      [
+        "P",
+        "eople"
+      ],
+      [
+        "Ġevent",
+        "People"
+      ],
+      [
+        "Ġ",
+        "learner"
+      ],
+      [
+        "re",
+        "sult"
+      ],
+      [
+        "Ġc",
+        "ardholder"
+      ],
+      [
+        "fin",
+        "e"
+      ],
+      [
+        "Ġ",
+        "market"
+      ],
+      [
+        "guest",
+        "Key"
+      ],
+      [
+        "patron",
+        "Id"
+      ],
+      [
+        "pupil",
+        "Id"
+      ],
+      [
+        "2",
+        "0"
+      ],
+      [
+        "2",
+        "5"
+      ],
+      [
+        "4",
+        "0"
+      ],
+      [
+        "6",
+        "0"
+      ],
+      [
+        "7",
+        "5"
+      ],
+      [
+        "9",
+        "0"
+      ],
+      [
+        "Ġ",
+        "75"
+      ],
+      [
+        "Ġ",
+        "90"
+      ],
+      [
+        "Ġ1",
+        "20"
+      ],
+      [
+        "Ġ1",
+        "40"
+      ],
+      [
+        "Ġ1",
+        "60"
+      ],
+      [
+        "Ġ2",
+        "0"
+      ],
+      [
+        "Ġ2",
+        "25"
+      ],
+      [
+        "Ġ5",
+        "0"
+      ],
+      [
+        "Ġborrow",
+        "er"
+      ],
+      [
+        "Ġregistration",
+        "Fee"
+      ],
+      [
+        "Ġadmission",
+        "Fee"
+      ],
+      [
+        "Ġcredit",
+        "Value"
+      ],
+      [
+        "t",
+        "ransactions"
+      ],
+      [
+        "Ġloan",
+        "Records"
+      ],
+      [
+        "borrow",
+        "ings"
+      ],
+      [
+        "reservation",
+        "s"
+      ],
+      [
+        "Ġ",
+        "venue"
+      ],
+      [
+        "Ġne",
+        "ighborhood"
+      ],
+      [
+        "din",
+        "ers"
+      ],
+      [
+        "diner",
+        "Key"
+      ],
+      [
+        "Ġvisit",
+        "State"
+      ],
+      [
+        "customer",
+        "Id"
+      ],
+      [
+        "attendee",
+        "Id"
+      ],
+      [
+        "scholar",
+        "Id"
+      ],
+      [
+        "registrant",
+        "Id"
+      ],
+      [
+        "reader",
+        "Id"
+      ],
+      [
+        "borrower",
+        "Id"
+      ],
+      [
+        "Ġcourse",
+        "Status"
+      ],
+      [
+        "li",
+        "fecycle"
+      ],
+      [
+        "t",
+        "erritory"
+      ],
+      [
+        "Ġamount",
+        "Due"
+      ],
+      [
+        "pen",
+        "alty"
+      ],
+      [
+        "Ġbuy",
+        "er"
+      ],
+      [
+        "circulation",
+        "s"
+      ],
+      [
+        "registration",
+        "Id"
+      ],
+      [
+        "delegate",
+        "Id"
+      ],
+      [
+        "Ġc",
+        "ampus"
+      ],
+      [
+        "student",
+        "Id"
+      ],
+      [
+        "diner",
+        "Id"
+      ],
+      [
+        "Ġloan",
+        "State"
+      ],
+      [
+        "participant",
+        "Id"
+      ],
+      [
+        "Ġattendance",
+        "Status"
+      ],
+      [
+        "c",
+        "ardholders"
+      ],
+      [
+        "b",
+        "ranch"
+      ],
+      [
+        "cu",
+        "stomers"
+      ],
+      [
+        "e",
+        "vent"
+      ],
+      [
+        "a",
+        "ccounts"
+      ],
+      [
+        "p",
+        "articipants"
+      ],
+      [
+        "Ġorder",
+        "Total"
+      ],
+      [
+        "co",
+        "st"
+      ],
+      [
+        "Ġse",
+        "ction"
+      ],
+      [
+        "Ġbad",
+        "ge"
+      ],
+      [
+        "e",
+        "ar"
+      ],
+      [
+        "f",
+        "fere"
+      ],
+      [
+        "i",
+        "ffere"
+      ],
+      [
+        "Ġa",
+        "pp"
+      ],
+      [
+        "Ġd",
+        "iffere"
+      ],
+      [
+        "Ġapp",
+        "ear"
+      ],
+      [
+        "Ġdiffere",
+        "nt"
+      ],
+      [
+        "co",
+        "unt"
+      ],
+      [
+        "Ġt",
+        "ransaction"
+      ],
+      [
+        "member",
+        "Key"
+      ],
+      [
+        "customer",
+        "Key"
+      ],
+      [
+        "Ġregistration",
+        "State"
+      ],
+      [
+        "Ġpass",
+        "State"
+      ],
+      [
+        "visitor",
+        "Id"
+      ],
+      [
+        "enrollee",
+        "Id"
+      ],
+      [
+        "cardholder",
+        "Id"
+      ],
+      [
+        "Ġav",
+        "g"
+      ],
+      [
+        "in",
+        "ct"
+      ],
+      [
+        "ist",
+        "inct"
+      ],
+      [
+        "Ġd",
+        "istinct"
+      ],
+      [
+        "Ġcheck",
+        "out"
+      ],
+      [
+        "n",
+        "y"
+      ],
+      [
+        "Ġt",
+        "here"
+      ],
+      [
+        "Ġa",
+        "re"
+      ],
+      [
+        "ho",
+        "w"
+      ],
+      [
+        "pla",
+        "cements"
+      ],
+      [
+        "Ġma",
+        "ny"
+      ],
+      [
+        "u",
+        "m"
+      ],
+      [
+        "Ġs",
+        "um"
+      ],
+      [
+        "Ġm",
+        "in"
+      ],
+      [
+        "Ġma",
+        "x"
+      ],
+      [
+        "i",
+        "q"
+      ],
+      [
+        "n",
+        "iq"
+      ],
+      [
+        "u",
+        "niq"
+      ],
+      [
+        "Ġ",
+        "uniq"
+      ],
+      [
+        "Ġuniq",
+        "ue"
+      ],
+      [
+        "Ġlegal",
+        "Name"
+      ],
+      [
+        "Ġregistration",
+        "Id"
+      ],
+      [
+        "Ġborrow",
+        "ing"
+      ],
+      [
+        "Ġstudent",
+        "Records"
+      ],
+      [
+        "Ġcustomer",
+        "Records"
+      ],
+      [
+        "li",
+        "brary"
+      ],
+      [
+        "course",
+        "Id"
+      ],
+      [
+        "c",
+        "ampus"
+      ],
+      [
+        "Ġguest",
+        "Id"
+      ],
+      [
+        "student",
+        "Key"
+      ],
+      [
+        "member",
+        "Id"
+      ],
+      [
+        "account",
+        "Key"
+      ],
+      [
+        "Ġinvoice",
+        "Total"
+      ],
+      [
+        "Ġsale",
+        "Value"
+      ],
+      [
+        "Ġmeal",
+        "Total"
+      ],
+      [
+        "Ġbill",
+        "Total"
+      ],
+      [
+        "A",
+        "mount"
+      ],
+      [
+        "P",
+        "rice"
+      ],
+      [
+        "u",
+        "ped"
+      ],
+      [
+        "ro",
+        "uped"
+      ],
+      [
+        "Ġco",
+        "unt"
+      ],
+      [
+        "Ġg",
+        "rouped"
+      ],
+      [
+        "Ġparticipant",
+        "Name"
+      ],
+      [
+        "b",
+        "rea"
+      ],
+      [
+        "o",
+        "w"
+      ],
+      [
+        "Ġco",
+        "unts"
+      ],
+      [
+        "Ġd",
+        "ow"
+      ],
+      [
+        "brea",
+        "k"
+      ],
+      [
+        "Ġdow",
+        "n"
+      ],
+      [
+        "check",
+        "Id"
+      ],
+      [
+        "enrollment",
+        "Id"
+      ],
+      [
+        "Ġpla",
+        "cement"
+      ],
+      [
+        "enrollme",
+        "nts"
+      ],
+      [
+        "display",
+        "Name"
+      ],
+      [
+        "Ġp",
+        "urchase"
+      ],
+      [
+        "Ġcourse",
+        "Id"
+      ],
+      [
+        "Ġ",
+        "learnerId"
+      ],
+      [
+        "visit",
+        "Id"
+      ],
+      [
+        "circulation",
+        "Id"
+      ],
+      [
+        "Ġattendee",
+        "Key"
+      ],
+      [
+        "Ġclient",
+        "Id"
+      ],
+      [
+        "Ġdiner",
+        "Name"
+      ],
+      [
+        "Ġaccount",
+        "Name"
+      ],
+      [
+        "visitor",
+        "s"
+      ],
+      [
+        "G",
+        "uest"
+      ],
+      [
+        "Ġtableside",
+        "Guest"
+      ],
+      [
+        "ĠtablesideGuest",
+        "s"
+      ],
+      [
+        "a",
+        "ch"
+      ],
+      [
+        "f",
+        "or"
+      ],
+      [
+        "Ġe",
+        "ach"
+      ],
+      [
+        "Ġcirculation",
+        "Status"
+      ],
+      [
+        "Ġticket",
+        "Price"
+      ],
+      [
+        "Ġnet",
+        "Amount"
+      ],
+      [
+        "full",
+        "Name"
+      ],
+      [
+        "ne",
+        "ighborhood"
+      ],
+      [
+        "Ġguest",
+        "Key"
+      ],
+      [
+        "Ġpatron",
+        "Id"
+      ],
+      [
+        "Ġpupil",
+        "Id"
+      ],
+      [
+        "placement",
+        "Id"
+      ],
+      [
+        "Ġcheck",
+        "Id"
+      ],
+      [
+        "Ġenrollment",
+        "Id"
+      ],
+      [
+        "check",
+        "Total"
+      ],
+      [
+        "Ġ",
+        "delegate"
+      ],
+      [
+        "Ġcustomer",
+        "Id"
+      ],
+      [
+        "pass",
+        "Id"
+      ],
+      [
+        "Ġscholar",
+        "Id"
+      ],
+      [
+        "Ġdiner",
+        "Key"
+      ],
+      [
+        "reservation",
+        "Id"
+      ],
+      [
+        "Ġattendee",
+        "Id"
+      ],
+      [
+        "Ġreader",
+        "Id"
+      ],
+      [
+        "Ġregistrant",
+        "Id"
+      ],
+      [
+        "badge",
+        "Id"
+      ],
+      [
+        "Ġborrower",
+        "Id"
+      ],
+      [
+        "Ġmember",
+        "Name"
+      ],
+      [
+        "Ġvisit",
+        "Id"
+      ],
+      [
+        "Ġcirculation",
+        "Id"
+      ],
+      [
+        "tab",
+        "Total"
+      ],
+      [
+        "Ġsale",
+        "Status"
+      ],
+      [
+        "buyer",
+        "Id"
+      ],
+      [
+        "order",
+        "Id"
+      ],
+      [
+        "booking",
+        "Id"
+      ],
+      [
+        "sale",
+        "Id"
+      ],
+      [
+        "Ġstudent",
+        "Id"
+      ],
+      [
+        "Ġdiner",
+        "Id"
+      ],
+      [
+        "Ġparticipant",
+        "Id"
+      ],
+      [
+        "lend",
+        "Id"
+      ],
+      [
+        "Ġplacement",
+        "Id"
+      ],
+      [
+        "lend",
+        "s"
+      ],
+      [
+        "bad",
+        "ges"
+      ],
+      [
+        "Ġcustomer",
+        "Name"
+      ],
+      [
+        "Ġreader",
+        "Name"
+      ],
+      [
+        "Ġpass",
+        "Id"
+      ],
+      [
+        "Ġreservation",
+        "Id"
+      ],
+      [
+        "Ġbadge",
+        "Id"
+      ],
+      [
+        "Ġvenue",
+        "Area"
+      ],
+      [
+        "order",
+        "Key"
+      ],
+      [
+        "loan",
+        "Key"
+      ],
+      [
+        "ticket",
+        "Id"
+      ],
+      [
+        "Ġcustomer",
+        "Key"
+      ],
+      [
+        "invoice",
+        "Id"
+      ],
+      [
+        "Ġvisitor",
+        "Id"
+      ],
+      [
+        "Ġmember",
+        "Key"
+      ],
+      [
+        "transaction",
+        "Id"
+      ],
+      [
+        "borrowing",
+        "Id"
+      ],
+      [
+        "Ġenrollee",
+        "Id"
+      ],
+      [
+        "Ġcardholder",
+        "Id"
+      ],
+      [
+        "contact",
+        "Name"
+      ],
+      [
+        "Ġattendee",
+        "Name"
+      ],
+      [
+        "Ġorder",
+        "Id"
+      ],
+      [
+        "Ġbooking",
+        "Id"
+      ],
+      [
+        "Ġlend",
+        "Id"
+      ],
+      [
+        "Ġsale",
+        "Id"
+      ],
+      [
+        "registration",
+        "Fee"
+      ],
+      [
+        "admission",
+        "Fee"
+      ],
+      [
+        "credit",
+        "Value"
+      ],
+      [
+        "P",
+        "hase"
+      ],
+      [
+        "Ġ",
+        "delegateId"
+      ],
+      [
+        "ticket",
+        "Key"
+      ],
+      [
+        "Ġstudent",
+        "Key"
+      ],
+      [
+        "admission",
+        "Id"
+      ],
+      [
+        "Ġmember",
+        "Id"
+      ],
+      [
+        "Ġaccount",
+        "Key"
+      ],
+      [
+        "Ġbranch",
+        "Area"
+      ],
+      [
+        "account",
+        "Id"
+      ],
+      [
+        "Ġservice",
+        "Phase"
+      ],
+      [
+        "home",
+        "City"
+      ],
+      [
+        "Ġloan",
+        "Key"
+      ],
+      [
+        "Ġorder",
+        "Key"
+      ],
+      [
+        "Ġticket",
+        "Id"
+      ],
+      [
+        "Ġinvoice",
+        "Id"
+      ],
+      [
+        "Ġtransaction",
+        "Id"
+      ],
+      [
+        "Ġborrowing",
+        "Id"
+      ],
+      [
+        "amount",
+        "Due"
+      ],
+      [
+        "Ġguest",
+        "Name"
+      ],
+      [
+        "Ġlearner",
+        "Name"
+      ],
+      [
+        "postal",
+        "Area"
+      ],
+      [
+        "order",
+        "Total"
+      ],
+      [
+        "loan",
+        "Id"
+      ],
+      [
+        "tab",
+        "Id"
+      ],
+      [
+        "checkout",
+        "Id"
+      ],
+      [
+        "Ġticket",
+        "Key"
+      ],
+      [
+        "Ġadmission",
+        "Id"
+      ],
+      [
+        "Ġstudent",
+        "Name"
+      ],
+      [
+        "legal",
+        "Name"
+      ],
+      [
+        "Ġloan",
+        "Id"
+      ],
+      [
+        "Ġtab",
+        "Id"
+      ],
+      [
+        "Ġcheckout",
+        "Id"
+      ],
+      [
+        "class",
+        "Id"
+      ],
+      [
+        "section",
+        "Id"
+      ],
+      [
+        "Ġbuyer",
+        "Id"
+      ],
+      [
+        "meal",
+        "Total"
+      ],
+      [
+        "sale",
+        "Value"
+      ],
+      [
+        "invoice",
+        "Total"
+      ],
+      [
+        "bill",
+        "Total"
+      ],
+      [
+        "participant",
+        "Name"
+      ],
+      [
+        "diner",
+        "Name"
+      ],
+      [
+        "account",
+        "Name"
+      ],
+      [
+        "Ġclass",
+        "Id"
+      ],
+      [
+        "Ġsection",
+        "Id"
+      ],
+      [
+        "ticket",
+        "Price"
+      ],
+      [
+        "net",
+        "Amount"
+      ],
+      [
+        "Ġaccount",
+        "Id"
+      ],
+      [
+        "dining",
+        "Id"
+      ],
+      [
+        "purchase",
+        "Id"
+      ],
+      [
+        "member",
+        "Name"
+      ],
+      [
+        "customer",
+        "Name"
+      ],
+      [
+        "reader",
+        "Name"
+      ],
+      [
+        "Ġdining",
+        "Id"
+      ],
+      [
+        "Ġpurchase",
+        "Id"
+      ],
+      [
+        "booking",
+        "Status"
+      ],
+      [
+        "attendee",
+        "Name"
+      ],
+      [
+        "guest",
+        "Name"
+      ],
+      [
+        "order",
+        "State"
+      ],
+      [
+        "learner",
+        "Name"
+      ],
+      [
+        "enrollment",
+        "State"
+      ],
+      [
+        "visit",
+        "State"
+      ],
+      [
+        "course",
+        "Status"
+      ],
+      [
+        "student",
+        "Name"
+      ],
+      [
+        "loan",
+        "State"
+      ],
+      [
+        "attendance",
+        "Status"
+      ],
+      [
+        "venue",
+        "Area"
+      ],
+      [
+        "registration",
+        "State"
+      ],
+      [
+        "pass",
+        "State"
+      ],
+      [
+        "branch",
+        "Area"
+      ],
+      [
+        "circulation",
+        "Status"
+      ],
+      [
+        "sale",
+        "Status"
+      ],
+      [
+        "service",
+        "Phase"
+      ]
+    ]
+  }
+}

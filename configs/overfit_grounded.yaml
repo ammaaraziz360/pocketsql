@@ -1,0 +1,17 @@
+seed: 42
+tokenizer_path: artifacts/tokenizers/grounded-bpe.json
+canonicalize_identifiers: true
+layers: 3
+hidden_dim: 192
+heads: 6
+ffn_dim: 768
+context_length: 160
+batch_size: 8
+grad_accum_steps: 1
+learning_rate: 0.001
+warmup_steps: 10
+epochs: 100
+require_full_sequences: true
+generation_max_tokens: 64
+validation_execution_every: 0
+validation_execution_batch_size: 16

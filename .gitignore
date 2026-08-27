@@ -5,8 +5,13 @@ __pycache__/
 build/
 dist/
 .pytest_cache/
-data/generated/
+data/generated*/
+data/challenge*/
+data/grounding-dev*/
+data/casual-dev*/
+data/column-copy-dev*/
 checkpoints/
+runs/
 *.safetensors
 .DS_Store
 .tmp/
