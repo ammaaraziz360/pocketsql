@@ -17,6 +17,9 @@ def audit_sequences(
     generation_max_tokens: int,
     canonicalize_identifiers: bool = False,
     identifier_slot_strategy: str = "ordered",
+    canonicalize_literals: bool = False,
+    target_format: str = "sql",
+    schema_linking_hints: bool = False,
 ) -> dict:
     zero_target = 0
     partial_target = 0
@@ -26,7 +29,16 @@ def audit_sequences(
     max_target_tokens = 0
     max_sequence_tokens = 0
     for record in records:
-        tokens = tokenizer.encode(format_record(record, canonicalize_identifiers, identifier_slot_strategy))
+        tokens = tokenizer.encode(
+            format_record(
+                record,
+                canonicalize_identifiers,
+                identifier_slot_strategy,
+                canonicalize_literals,
+                target_format,
+                schema_linking_hints,
+            )
+        )
         sql_marker = tokens.index(tokenizer.sql_start_id)
         prefix_tokens = sql_marker
         prompt_tokens = sql_marker + 1
@@ -62,8 +74,8 @@ def audit_sequences(
 def require_complete_sequences(report: dict, label: str = "training") -> None:
     if report["partial_targets"] or report["zero_targets"] or report["generation_targets_over_cap"]:
         raise ValueError(
-            f"{label} sequence audit failed: {report['partial_targets']} partial SQL targets, "
-            f"{report['zero_targets']} missing SQL targets, and {report['generation_targets_over_cap']} "
+            f"{label} sequence audit failed: {report['partial_targets']} partial generation targets, "
+            f"{report['zero_targets']} missing generation targets, and {report['generation_targets_over_cap']} "
             f"generation targets over the {report['generation_max_tokens']}-token cap. "
             f"Need context_length >= {report['max_sequence_tokens']} and generation_max_tokens >= "
             f"{report['max_generation_tokens']} for this tokenizer."
@@ -85,6 +97,9 @@ def main() -> None:
         config.get("generation_max_tokens", 128),
         config.get("canonicalize_identifiers", False),
         config.get("identifier_slot_strategy", "ordered"),
+        config.get("canonicalize_literals", False),
+        config.get("target_format", "sql"),
+        config.get("schema_linking_hints", False),
     )
     print(json.dumps(report, indent=2, sort_keys=True))
     if not args.allow_truncation:

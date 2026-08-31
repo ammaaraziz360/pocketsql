@@ -11,12 +11,62 @@ import re
 import sqlite3
 from typing import Mapping
 
+from .composition import V9_PROFILE, compositional_plans_for
 from .populate import populate
 from .query_ast import Filter, QueryPlan
 from .render_sql import render_sql
-from .schemas import DOMAIN_VOCAB, STATUS_VALUES, Schema, make_opaque_schema, make_schema
+from .schemas import CITY_VALUES, DOMAIN_VOCAB, STATUS_VALUES, Schema, make_opaque_schema, make_schema
 from .validate import validate_sql
 from .verbalize import verbalize
+
+
+POSITION_ROBUST_V8_FAMILY_WEIGHTS = {
+    "join": 12,
+    "and_filter": 20,
+    "or_filter": 22,
+    "select": 40,
+    "select_limit": 9,
+    "text_filter": 16,
+    "count_text_filter": 10,
+    "join_text_filter": 10,
+    "join_count_text_filter": 10,
+    "join_aggregate_text_filter": 10,
+    "distinct": 5,
+    "count": 5,
+    "group": 5,
+    "filter": 5,
+    "sum": 3,
+    "avg": 3,
+    "min": 3,
+    "max": 3,
+    "order_limit": 5,
+}
+
+# A short post-training replay pass restores the deeper ordinary join and
+# aggregate variant coverage that would otherwise be diluted by the four new
+# composition families.  It intentionally retains those v8 families so the
+# targeted behavior is not fine-tuned away.
+POSITION_ROBUST_V8_REPLAY_FAMILY_WEIGHTS = {
+    "join": 28,
+    "and_filter": 22,
+    "or_filter": 24,
+    "select": 40,
+    "select_limit": 8,
+    "text_filter": 12,
+    "count_text_filter": 6,
+    "join_text_filter": 6,
+    "join_count_text_filter": 6,
+    "join_aggregate_text_filter": 6,
+    "distinct": 5,
+    "count": 5,
+    "group": 5,
+    "filter": 5,
+    "sum": 8,
+    "avg": 8,
+    "min": 8,
+    "max": 8,
+    "order_limit": 5,
+}
 
 
 def _with_threshold(filters: tuple[Filter, ...], amount_column: str, threshold: int) -> tuple[Filter, ...]:
@@ -38,8 +88,11 @@ def base_plans_for(schema: Schema) -> list[QueryPlan]:
     join_column_choices = ((name_column, amount), (location_column, amount), (name_column, status))
     base = [
         QueryPlan("select", parent.name, (parent_id,)),
+        QueryPlan("select_limit", parent.name, (name_column, location_column), limit=2),
         QueryPlan("distinct", parent.name, (location_column,), distinct=True),
         QueryPlan("filter", child.name, (child_id, amount), filters=(Filter(status, "=", shipped),)),
+        QueryPlan("text_filter", parent.name, (location_column,), filters=(Filter(location_column, "=", CITY_VALUES[0]),)),
+        QueryPlan("count_text_filter", parent.name, (), aggregate="COUNT", filters=(Filter(location_column, "=", CITY_VALUES[0]),)),
         QueryPlan("and_filter", child.name, (child_id,), filters=(Filter(amount, ">", 20), Filter(status, "=", shipped))),
         QueryPlan("or_filter", child.name, (child_id,), filters=(Filter(status, "=", shipped), Filter(status, "=", open_status)), filter_connector="OR"),
         QueryPlan("count", child.name, (), aggregate="COUNT"),
@@ -50,6 +103,33 @@ def base_plans_for(schema: Schema) -> list[QueryPlan]:
         QueryPlan("group", child.name, (status,), aggregate="COUNT", group_by=(status,)),
         QueryPlan("order_limit", child.name, (child_id, amount), order_by=amount, descending=True, limit=3),
         QueryPlan("join", parent.name, (f"{parent.name}.{name_column}", f"{child.name}.{amount}"), join_table=child.name, join_on=(f"{parent.name}.{parent_id}", f"{child.name}.{child_fk}")),
+        QueryPlan(
+            "join_text_filter",
+            child.name,
+            (f"{child.name}.*",),
+            filters=(Filter(f"{parent.name}.{location_column}", "=", CITY_VALUES[0]),),
+            join_table=parent.name,
+            join_on=(f"{child.name}.{child_fk}", f"{parent.name}.{parent_id}"),
+        ),
+        QueryPlan(
+            "join_count_text_filter",
+            child.name,
+            (),
+            aggregate="COUNT",
+            filters=(Filter(f"{parent.name}.{location_column}", "=", CITY_VALUES[0]),),
+            join_table=parent.name,
+            join_on=(f"{child.name}.{child_fk}", f"{parent.name}.{parent_id}"),
+        ),
+        QueryPlan(
+            "join_aggregate_text_filter",
+            child.name,
+            (),
+            aggregate="SUM",
+            aggregate_column=f"{child.name}.{amount}",
+            filters=(Filter(f"{parent.name}.{location_column}", "=", CITY_VALUES[0]),),
+            join_table=parent.name,
+            join_on=(f"{child.name}.{child_fk}", f"{parent.name}.{parent_id}"),
+        ),
     ]
     return base
 
@@ -72,6 +152,57 @@ def plan_variant(plan: QueryPlan, schema: Schema, variant: int) -> QueryPlan:
         width = 2 + ((extra // (len(schema.tables) * len(columns))) % min(2, len(columns) - 1))
         selected = tuple(columns[(start + offset) % len(columns)] for offset in range(width))
         return replace(plan, table=selected_table.name, columns=selected, limit=None)
+    if plan.family == "select_limit":
+        parent = schema.tables[0]
+        columns = [column.name for column in parent.columns]
+        width = min(len(columns), 2 + (variant % 2))
+        start = variant % len(columns)
+        selected = tuple(columns[(start + offset) % len(columns)] for offset in range(width))
+        return replace(plan, table=parent.name, columns=selected, limit=2 + (variant % 5))
+    if plan.family == "text_filter":
+        parent = schema.tables[0]
+        name_column = schema.role("name")[1].name
+        location_column = schema.role("location")[1].name
+        projections = ((location_column,), (name_column, location_column), (name_column,))
+        return replace(
+            plan,
+            table=parent.name,
+            columns=projections[variant % len(projections)],
+            filters=(Filter(location_column, "=", CITY_VALUES[variant % len(CITY_VALUES)]),),
+            limit=None,
+        )
+    if plan.family == "count_text_filter":
+        parent = schema.tables[0]
+        location_column = schema.role("location")[1].name
+        return replace(
+            plan,
+            table=parent.name,
+            columns=(),
+            aggregate="COUNT",
+            aggregate_column=None,
+            filters=(Filter(location_column, "=", CITY_VALUES[variant % len(CITY_VALUES)]),),
+            limit=None,
+        )
+    if plan.family in {"join_text_filter", "join_count_text_filter", "join_aggregate_text_filter"}:
+        parent, child = schema.tables
+        parent_id = schema.role("parent_id")[1].name
+        child_fk = schema.role("parent_fk")[1].name
+        location_column = schema.role("location")[1].name
+        amount = schema.role("amount")[1].name
+        common = {
+            "table": child.name,
+            "filters": (Filter(f"{parent.name}.{location_column}", "=", CITY_VALUES[variant % len(CITY_VALUES)]),),
+            "join_table": parent.name,
+            "join_on": (f"{child.name}.{child_fk}", f"{parent.name}.{parent_id}"),
+            "order_by": None,
+            "limit": None,
+        }
+        if plan.family == "join_text_filter":
+            return replace(plan, columns=(f"{child.name}.*",), aggregate=None, aggregate_column=None, **common)
+        if plan.family == "join_count_text_filter":
+            return replace(plan, columns=(), aggregate="COUNT", aggregate_column=None, **common)
+        aggregate = ("SUM", "AVG", "MIN", "MAX")[variant % 4]
+        return replace(plan, columns=(), aggregate=aggregate, aggregate_column=f"{child.name}.{amount}", **common)
     if variant == 0:
         return plan
     parent, child = schema.tables
@@ -155,9 +286,14 @@ def build_records(
     generation_stats: dict | None = None,
     identifier_mode: str = "natural",
     question_style: str = "classic",
+    plan_profile: str = "families",
 ) -> dict[str, list[dict]]:
     if identifier_mode not in {"natural", "opaque"}:
         raise ValueError("identifier_mode must be 'natural' or 'opaque'")
+    if plan_profile not in {"families", V9_PROFILE}:
+        raise ValueError(f"Unknown plan profile: {plan_profile}")
+    if plan_profile == V9_PROFILE and family_weights:
+        raise ValueError("The composition-v9 plan profile does not accept family weights")
     rng = random.Random(seed)
     records: list[dict] = []
     schema_ids: list[str] = []
@@ -172,10 +308,22 @@ def build_records(
         connection = sqlite3.connect(":memory:")
         populate(connection, schema, rng)
         seen_questions: set[str] = set()
-        for plan_index, plan in enumerate(plans_for(schema, examples_per_schema, family_weights)):
+        plans = (
+            compositional_plans_for(schema, examples_per_schema, rng)
+            if plan_profile == V9_PROFILE
+            else plans_for(schema, examples_per_schema, family_weights)
+        )
+        for plan_index, plan in enumerate(plans):
             sql = render_sql(plan)
             valid, _ = validate_sql(connection, sql)
             question = verbalize(plan, rng, question_style)
+            if plan_profile == V9_PROFILE:
+                for _ in range(24):
+                    if question not in seen_questions:
+                        break
+                    question = verbalize(plan, rng, question_style)
+                else:
+                    raise RuntimeError(f"Could not verbalize a unique v9 question for {schema.schema_id}: {sql}")
             if not valid:
                 stats["discarded_invalid_sql"] += 1
             elif question in seen_questions:
@@ -213,9 +361,15 @@ def dataset_quality_report(
     """
     train_identifiers = set().union(*(schema_identifiers(record["schema_sql"]) for record in splits.get("train", [])))
     comparison_identifiers = reference_identifiers if reference_identifiers is not None else train_identifiers
-    report = {"splits": {}, "family_counts": {}, "identifier_reference": "provided" if reference_identifiers is not None else "train"}
+    report = {
+        "splits": {},
+        "family_counts": {},
+        "operation_counts": {},
+        "identifier_reference": "provided" if reference_identifiers is not None else "train",
+    }
     all_records = [record for records in splits.values() for record in records]
     family_counts = defaultdict(int)
+    operation_counts = defaultdict(int)
     schema_sets = {split_name: {record["schema_id"] for record in records} for split_name, records in splits.items()}
     overlaps = {
         f"{left}:{right}": len(schema_sets[left] & schema_sets[right])
@@ -233,8 +387,24 @@ def dataset_quality_report(
             "unseen_identifier_rate_vs_reference": (len(identifiers - comparison_identifiers) / len(identifiers)) if identifiers else 0.0,
         }
         for record in records:
-            family_counts[record["query_plan"]["family"]] += 1
+            plan = record["query_plan"]
+            family_counts[plan["family"]] += 1
+            operation_counts["join" if plan["join_table"] else "single_table"] += 1
+            operation_counts["filtered" if plan["filters"] else "unfiltered"] += 1
+            if len(plan["filters"]) > 1:
+                operation_counts["multi_filter"] += 1
+            if plan["aggregate"]:
+                operation_counts[f"aggregate_{plan['aggregate'].casefold()}"] += 1
+            if plan["distinct"]:
+                operation_counts["distinct"] += 1
+            if plan["group_by"]:
+                operation_counts["group"] += 1
+            if plan["order_by"]:
+                operation_counts["order"] += 1
+            if plan["limit"] is not None:
+                operation_counts["limit"] += 1
     report["family_counts"] = dict(sorted(family_counts.items()))
+    report["operation_counts"] = dict(sorted(operation_counts.items()))
     report["schema_split_overlap"] = overlaps
     report["schema_disjoint"] = not any(overlaps.values())
     report["total_records"] = len(all_records)
@@ -251,6 +421,7 @@ def write_dataset(
     schema_prefix: str = "schema",
     identifier_mode: str = "natural",
     question_style: str = "classic",
+    plan_profile: str = "families",
 ) -> dict[str, int]:
     output.mkdir(parents=True, exist_ok=True)
     generation_stats: dict = {}
@@ -264,6 +435,7 @@ def write_dataset(
         generation_stats,
         identifier_mode,
         question_style,
+        plan_profile,
     )
     for name, records in splits.items():
         with (output / f"{name}.jsonl").open("w", encoding="utf-8") as handle:
@@ -282,10 +454,27 @@ def main() -> None:
     parser.add_argument("--examples-per-schema", type=int, default=13)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--family-weights", help='JSON object of positive per-family weights, e.g. \'{"join": 4, "and_filter": 3, "or_filter": 3}\'.')
+    parser.add_argument(
+        "--profile",
+        choices=("position-robust-v8", "position-robust-v8-replay", "composition-v9"),
+        help="Use a versioned, tested family mix.",
+    )
     parser.add_argument("--identifier-mode", choices=("natural", "opaque"), default="natural")
-    parser.add_argument("--question-style", choices=("classic", "casual", "mixed", "heldout"), default="classic")
+    parser.add_argument(
+        "--question-style",
+        choices=("classic", "casual", "mixed", "heldout", "compositional", "compositional_heldout"),
+        default="classic",
+    )
     args = parser.parse_args()
     family_weights = json.loads(args.family_weights) if args.family_weights else None
+    if args.profile and family_weights is not None:
+        raise SystemExit("--profile and --family-weights are mutually exclusive.")
+    if args.profile == "position-robust-v8":
+        family_weights = POSITION_ROBUST_V8_FAMILY_WEIGHTS
+    elif args.profile == "position-robust-v8-replay":
+        family_weights = POSITION_ROBUST_V8_REPLAY_FAMILY_WEIGHTS
+    plan_profile = V9_PROFILE if args.profile == "composition-v9" else "families"
+    question_style = "compositional" if args.profile == "composition-v9" and args.question_style == "classic" else args.question_style
     if family_weights is not None and not isinstance(family_weights, dict):
         raise SystemExit("--family-weights must be a JSON object mapping family names to positive integers.")
     print(
@@ -296,7 +485,8 @@ def main() -> None:
             args.seed,
             family_weights,
             identifier_mode=args.identifier_mode,
-            question_style=args.question_style,
+            question_style=question_style,
+            plan_profile=plan_profile,
         )
     )
 

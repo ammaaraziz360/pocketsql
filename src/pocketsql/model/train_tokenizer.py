@@ -12,12 +12,18 @@ def record_texts(
     paths: list[Path],
     canonicalize_identifiers: bool = False,
     identifier_slot_strategy: str = "ordered",
+    canonicalize_literals: bool = False,
 ):
     for path in paths:
         with path.open(encoding="utf-8") as handle:
             for line in handle:
                 if line.strip():
-                    yield format_record(json.loads(line), canonicalize_identifiers, identifier_slot_strategy)
+                    yield format_record(
+                        json.loads(line),
+                        canonicalize_identifiers,
+                        identifier_slot_strategy,
+                        canonicalize_literals,
+                    )
 
 
 def main() -> None:
@@ -36,11 +42,21 @@ def main() -> None:
         default="ordered",
         help="How canonical tableN/columnN slots are assigned.",
     )
+    parser.add_argument(
+        "--canonicalize-literals",
+        action="store_true",
+        help="Train on reversible valueN slots for filter and limit literals.",
+    )
     args = parser.parse_args()
     if args.vocab_size < 512:
         raise SystemExit("--vocab-size must be at least 512 to retain byte fallback plus useful merges.")
     tokenizer = BPETokenizer.train(
-        record_texts(args.data, args.canonicalize_identifiers, args.identifier_slot_strategy),
+        record_texts(
+            args.data,
+            args.canonicalize_identifiers,
+            args.identifier_slot_strategy,
+            args.canonicalize_literals,
+        ),
         args.vocab_size,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)

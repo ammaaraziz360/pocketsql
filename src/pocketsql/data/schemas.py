@@ -52,6 +52,7 @@ class Schema:
 
 
 STATUS_VALUES = ("shipped", "open", "complete", "cancelled")
+CITY_VALUES = ("Austin", "Boston", "Chicago", "Denver", "Houston", "Miami", "Phoenix", "Seattle")
 
 # Per-domain synonym pools so different schema instances of the same domain get
 # genuinely distinct table/column vocabulary, not just a repeated fixed template.

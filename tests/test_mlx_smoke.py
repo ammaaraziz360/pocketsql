@@ -4,7 +4,8 @@ mx = pytest.importorskip("mlx.core")
 
 from pocketsql.model.tokenizer import ByteTokenizer
 from pocketsql.model.transformer import ModelConfig, PocketSQLTransformer
-from pocketsql.training.checkpoint import load_checkpoint, save_checkpoint
+from pocketsql.training.checkpoint import initialize_model, load_checkpoint, save_checkpoint
+from pocketsql.training.interpolate import interpolate_checkpoints
 from pocketsql.training.train import train_step
 
 
@@ -38,6 +39,59 @@ def test_checkpoint_round_trip(tmp_path):
     restored = tiny_model()
     assert load_checkpoint(tmp_path / "checkpoint", restored) == {"step": 1}
     assert (tmp_path / "checkpoint" / "tokenizer.json").exists()
+
+
+def test_weight_initialization_can_extend_only_the_position_table(tmp_path):
+    tokenizer = ByteTokenizer()
+    source = tiny_model()
+    save_checkpoint(tmp_path / "source", source, {"config": {"context_length": 256}}, tokenizer=tokenizer)
+    expanded = PocketSQLTransformer(
+        ModelConfig(
+            vocab_size=tokenizer.vocab_size,
+            layers=2,
+            hidden_dim=128,
+            heads=4,
+            ffn_dim=512,
+            context_length=320,
+        )
+    )
+
+    metadata = initialize_model(tmp_path / "source", expanded)
+    mx.eval(source.position.weight, expanded.position.weight)
+
+    assert metadata["config"]["context_length"] == 256
+    assert expanded.position.weight.shape == (320, 128)
+    assert mx.array_equal(source.position.weight, expanded.position.weight[:256]).item()
+
+
+def test_checkpoint_interpolation_writes_inference_only_checkpoint(tmp_path):
+    import json
+
+    tokenizer = ByteTokenizer()
+    config = {
+        "layers": 2,
+        "hidden_dim": 128,
+        "heads": 4,
+        "ffn_dim": 512,
+        "context_length": 256,
+        "canonicalize_identifiers": False,
+        "identifier_slot_strategy": "ordered",
+        "canonicalize_literals": False,
+    }
+    base = tmp_path / "base"
+    fine_tuned = tmp_path / "fine-tuned"
+    output = tmp_path / "interpolated"
+    save_checkpoint(base, tiny_model(), {"config": config, "epoch": 1}, tokenizer=tokenizer)
+    save_checkpoint(fine_tuned, tiny_model(), {"config": config, "epoch": 2}, tokenizer=tokenizer)
+
+    interpolate_checkpoints(base, fine_tuned, output, 0.5)
+
+    metadata = json.loads((output / "metadata.json").read_text())
+    assert (output / "weights.safetensors").exists()
+    assert metadata["resumable"] is False
+    assert metadata["weight_interpolation"]["fine_tuned_weight"] == 0.5
+    with pytest.raises(FileExistsError):
+        interpolate_checkpoints(base, fine_tuned, output, 0.5)
 
 
 def test_tiny_model_completes_one_training_step():

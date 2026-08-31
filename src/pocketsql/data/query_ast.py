@@ -27,6 +27,7 @@ class QueryPlan:
     limit: int | None = None
     join_table: str | None = None
     join_on: tuple[str, str] | None = None
+    aggregate_position: int = 0
 
     def normalized(self) -> dict:
         return asdict(self)

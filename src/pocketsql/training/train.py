@@ -13,7 +13,7 @@ import yaml
 from pocketsql.model.tokenizer import TokenizerProtocol, load_tokenizer
 from pocketsql.model.transformer import ModelConfig, PocketSQLTransformer
 from pocketsql.evaluation.evaluate import evaluate_model, write_prediction_diagnostics
-from pocketsql.training.checkpoint import load_checkpoint, save_checkpoint
+from pocketsql.training.checkpoint import initialize_model, load_checkpoint, save_checkpoint
 from pocketsql.training.audit import audit_sequences, require_complete_sequences
 from pocketsql.training.dataset import load_jsonl, make_batch
 from pocketsql.training.tensorboard import TensorBoardLogger
@@ -64,6 +64,9 @@ def evaluate_loss(model, records: list[dict], tokenizer: TokenizerProtocol, conf
             config["context_length"],
             config.get("canonicalize_identifiers", False),
             config.get("identifier_slot_strategy", "ordered"),
+            config.get("canonicalize_literals", False),
+            config.get("target_format", "sql"),
+            config.get("schema_linking_hints", False),
         )
         losses.append(float(masked_loss(model, mx.array(tokens), mx.array(mask)).item()))
     return sum(losses) / len(losses)
@@ -95,7 +98,11 @@ def build_model(config: dict, vocab_size: int) -> PocketSQLTransformer:
     )
     model.canonicalize_identifiers = config.get("canonicalize_identifiers", False)
     model.identifier_slot_strategy = config.get("identifier_slot_strategy", "ordered")
+    model.canonicalize_literals = config.get("canonicalize_literals", False)
     model.generation_max_tokens = config.get("generation_max_tokens", 128)
+    model.target_format = config.get("target_format", "sql")
+    model.constrain_semantic_plan = config.get("constrain_semantic_plan", model.target_format == "semantic_plan")
+    model.schema_linking_hints = config.get("schema_linking_hints", False)
     return model
 
 
@@ -114,9 +121,14 @@ def default_tensorboard_log_dir(checkpoint_dir: Path) -> Path:
     return Path("runs") / checkpoint_dir.name
 
 
-def tokenizer_for_training(config: dict, resume_from: Path | None = None) -> TokenizerProtocol:
-    if resume_from is not None and (resume_from / "tokenizer.json").exists():
-        return load_tokenizer(resume_from)
+def tokenizer_for_training(
+    config: dict,
+    resume_from: Path | None = None,
+    initialize_from: Path | None = None,
+) -> TokenizerProtocol:
+    source = resume_from or initialize_from
+    if source is not None and (source / "tokenizer.json").exists():
+        return load_tokenizer(source)
     return load_tokenizer(config.get("tokenizer_path"))
 
 
@@ -171,13 +183,16 @@ def train(
     checkpoint_dir: Path | None = None,
     val_records: list[dict] | None = None,
     resume_from: Path | None = None,
+    initialize_from: Path | None = None,
     best_checkpoint_dir: Path | None = None,
     best_execution_checkpoint_dir: Path | None = None,
     tensorboard_log_dir: Path | None = None,
 ) -> tuple[PocketSQLTransformer, list[float]]:
     random.seed(config["seed"])
     mx.random.seed(config["seed"])
-    tokenizer = tokenizer_for_training(config, resume_from)
+    if resume_from is not None and initialize_from is not None:
+        raise ValueError("resume_from and initialize_from are mutually exclusive")
+    tokenizer = tokenizer_for_training(config, resume_from, initialize_from)
     generation_max_tokens = config.get("generation_max_tokens", 128)
     if generation_max_tokens < 1:
         raise ValueError("generation_max_tokens must be positive")
@@ -189,6 +204,9 @@ def train(
             generation_max_tokens,
             config.get("canonicalize_identifiers", False),
             config.get("identifier_slot_strategy", "ordered"),
+            config.get("canonicalize_literals", False),
+            config.get("target_format", "sql"),
+            config.get("schema_linking_hints", False),
         )
         require_complete_sequences(training_audit, "training")
         print({"sequence_audit": "training", **training_audit})
@@ -200,6 +218,9 @@ def train(
                 generation_max_tokens,
                 config.get("canonicalize_identifiers", False),
                 config.get("identifier_slot_strategy", "ordered"),
+                config.get("canonicalize_literals", False),
+                config.get("target_format", "sql"),
+                config.get("schema_linking_hints", False),
             )
             require_complete_sequences(validation_audit, "validation")
             print({"sequence_audit": "validation", **validation_audit})
@@ -210,14 +231,18 @@ def train(
     if resume_from is not None:
         previous_metadata = load_checkpoint(resume_from, model, optimizer)
         start_epoch = previous_metadata.get("epoch", 0)
+    elif initialize_from is not None:
+        initialize_model(initialize_from, model)
     if checkpoint_dir and val_records and best_checkpoint_dir is None:
         best_checkpoint_dir = default_best_checkpoint_dir(checkpoint_dir)
     if checkpoint_dir and val_records and best_execution_checkpoint_dir is None:
         best_execution_checkpoint_dir = default_best_execution_checkpoint_dir(checkpoint_dir)
 
-    best_val_loss = previous_metadata.get("best_val_loss", float("inf"))
+    best_val_loss = previous_metadata.get("best_val_loss")
+    if best_val_loss is None:
+        best_val_loss = float("inf")
     best_epoch = previous_metadata.get("best_epoch")
-    epochs_without_improvement = previous_metadata.get("epochs_without_improvement", 0)
+    epochs_without_improvement = previous_metadata.get("epochs_without_improvement") or 0
     if resume_from is not None and best_checkpoint_dir and best_checkpoint_dir.exists() and best_val_loss == float("inf"):
         best_metadata = load_checkpoint(best_checkpoint_dir, build_model(config, tokenizer.vocab_size))
         best_val_loss = best_metadata.get("val_loss", best_metadata.get("best_val_loss", float("inf")))
@@ -268,6 +293,9 @@ def train(
                     config["context_length"],
                     config.get("canonicalize_identifiers", False),
                     config.get("identifier_slot_strategy", "ordered"),
+                    config.get("canonicalize_literals", False),
+                    config.get("target_format", "sql"),
+                    config.get("schema_linking_hints", False),
                 )
                 micro_batches.append((mx.array(tokens), mx.array(mask)))
             if grad_accum_steps == 1:
@@ -414,6 +442,12 @@ def main() -> None:
     parser.add_argument("--best-execution-checkpoint", type=Path, default=None, help="Directory for the best validation execution checkpoint (default: <checkpoint>-best-execution).")
     parser.add_argument("--log-dir", type=Path, default=None, help="TensorBoard event directory (default: runs/<checkpoint-name>).")
     parser.add_argument("--resume", type=Path, default=None)
+    parser.add_argument(
+        "--initialize-from",
+        type=Path,
+        default=None,
+        help="Load model/tokenizer weights only, starting a fresh optimizer and epoch counter.",
+    )
     parser.add_argument("--overfit", type=int, default=0)
     parser.add_argument("--epochs", type=int, default=None, help="Override the epoch count in the YAML config.")
     parser.add_argument("--execution-gate", type=float, default=None, help="After an --overfit run, fail unless training execution accuracy reaches this value.")
@@ -427,6 +461,8 @@ def main() -> None:
         raise SystemExit("--execution-gate must be between 0 and 1")
     if args.execution_gate is not None and not args.overfit:
         raise SystemExit("--execution-gate requires --overfit so it cannot accidentally score the full training split")
+    if args.resume and args.initialize_from:
+        raise SystemExit("--resume and --initialize-from are mutually exclusive")
     records = load_jsonl(args.data)
     if args.overfit:
         records = records[: args.overfit]
@@ -437,6 +473,7 @@ def main() -> None:
         args.checkpoint,
         val_records=val_records,
         resume_from=args.resume,
+        initialize_from=args.initialize_from,
         best_checkpoint_dir=args.best_checkpoint,
         best_execution_checkpoint_dir=args.best_execution_checkpoint,
         tensorboard_log_dir=args.log_dir or default_tensorboard_log_dir(args.checkpoint),

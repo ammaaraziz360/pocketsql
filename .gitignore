@@ -10,6 +10,9 @@ data/challenge*/
 data/grounding-dev*/
 data/casual-dev*/
 data/column-copy-dev*/
+data/gretel*/
+data/wikisql*/
+data/spider*/
 checkpoints/
 runs/
 *.safetensors

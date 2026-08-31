@@ -10,10 +10,12 @@ def literal(value: str | int | float) -> str:
 
 
 def render_sql(plan: QueryPlan) -> str:
-    select = ", ".join(plan.columns)
+    select_items = list(plan.columns)
     if plan.aggregate:
         target = "*" if plan.aggregate == "COUNT" and not plan.aggregate_column else plan.aggregate_column
-        select = f"{plan.aggregate}({target})" + (f", {select}" if plan.columns else "")
+        position = min(max(plan.aggregate_position, 0), len(select_items))
+        select_items.insert(position, f"{plan.aggregate}({target})")
+    select = ", ".join(select_items)
     prefix = "SELECT DISTINCT" if plan.distinct else "SELECT"
     sql = f"{prefix} {select} FROM {plan.table}"
     if plan.join_table and plan.join_on:

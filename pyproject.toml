@@ -16,7 +16,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = [
+  "pytest>=8.0",
+  "sqlglot>=27.0",
+]
+external-data = [
+  "certifi>=2024.0",
+  "pyarrow>=18.0",
+  "sqlglot>=27.0",
+]
 
 [tool.setuptools]
 package-dir = {"" = "src"}
