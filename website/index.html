@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="PocketSQL turns natural language into safe, read-only SQL—locally on Apple Silicon." />
+    <title>PocketSQL — Ask your database anything</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="developers.css" />
+  </head>
+  <body>
+    <div class="grain"></div>
+    <header class="nav shell">
+      <a class="brand" href="#top" aria-label="PocketSQL home"><span class="brand-mark">⌁</span><span>Pocket<span class="brand-dim">SQL</span></span></a>
+      <nav class="nav-links" aria-label="Main navigation">
+        <a href="#how-it-works">How it works</a>
+        <a href="#principles">Principles</a>
+        <a href="#developers">Developers</a>
+      </nav>
+      <a class="nav-cta" href="#playground">Try the playground <span>↗</span></a>
+    </header>
+
+    <main id="top">
+      <section class="hero shell">
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="pulse"></span> LOCAL-FIRST TEXT-TO-SQL</div>
+          <h1>Ask your data.<br /><em>Keep control.</em></h1>
+          <p class="hero-sub">PocketSQL translates plain English into precise, read-only SQL. A small model that runs close to your data—no API wrapper, no data leaving your machine.</p>
+          <div class="hero-actions"><a class="button button-primary" href="#playground">Explore the demo <span>↓</span></a><a class="text-link" href="https://github.com" target="_blank" rel="noreferrer">View on GitHub <span>↗</span></a></div>
+          <div class="hero-meta"><span><strong>MLX</strong> native</span><span class="meta-dot"></span><span><strong>SQLite</strong> ready</span><span class="meta-dot"></span><span><strong>SELECT</strong> only</span></div>
+        </div>
+        <div class="hero-visual" aria-label="Abstract representation of schema-aware query generation">
+          <div class="orb orb-one"></div><div class="orb orb-two"></div>
+          <div class="query-card floating-card">
+            <div class="card-top"><span class="mini-label">NATURAL LANGUAGE</span><span class="status-dot"></span></div>
+            <p>“Which customers placed<br />an order this month?”</p>
+          </div>
+          <div class="arrow-rail">↘</div>
+          <div class="sql-card floating-card">
+            <div class="card-top"><span class="mini-label">GENERATED SQL</span><span class="check">✓</span></div>
+            <code><span class="blue">SELECT</span> c.name<br /><span class="blue">FROM</span> customers c<br /><span class="blue">JOIN</span> orders o<br /><span class="blue">ON</span> c.id = o.customer_id<br /><span class="blue">WHERE</span> o.created_at ≥ <span class="orange">'2025-…'</span></code>
+          </div>
+          <div class="visual-caption"><span class="caption-line"></span><span>Schema-aware by design</span></div>
+        </div>
+      </section>
+
+      <section class="signal-bar shell"><span>BUILT FOR PEOPLE WHO CARE WHERE THEIR DATA GOES</span><div class="signal-line"></div><span>TRAINED, NOT WRAPPED</span></section>
+
+      <section class="playground-section shell" id="playground">
+        <div class="section-intro"><div><div class="eyebrow">01 / THE PLAYGROUND</div><h2>From question<br /><em>to query.</em></h2></div><p>See the core loop in action. Pick a question or write your own—the preview uses a representative PocketSQL response.</p></div>
+        <div class="playground">
+          <aside class="schema-panel"><div class="panel-heading"><span class="panel-kicker">CONNECTED SCHEMA</span><span class="live-indicator">● LIVE</span></div><div class="db-name"><span class="db-icon">◈</span><span>ecommerce.db</span></div><div class="table active-table"><span>▾</span><strong>orders</strong><small>5 columns</small></div><div class="columns"><span><i>▦</i> id</span><span><i>↗</i> customer_id</span><span><i>◷</i> created_at</span><span><i>$</i> total_amount</span><span><i>◌</i> status</span></div><div class="table"><span>›</span><strong>customers</strong><small>4 columns</small></div><div class="table"><span>›</span><strong>products</strong><small>6 columns</small></div><div class="schema-footer"><span class="lock">⌑</span> READ-ONLY CONNECTION</div></aside>
+          <div class="query-panel"><div class="panel-heading"><span class="panel-kicker">YOUR QUESTION</span><span class="shortcut">⌘ ↵ to run</span></div><textarea id="question" aria-label="Ask a question about your database">Show me the top 5 customers by total order value</textarea><div class="suggestions"><button data-question="Show me the top 5 customers by total order value">Top customers by value <span>↗</span></button><button data-question="How many orders were placed this month?">Orders this month <span>↗</span></button><button data-question="Which products are low in stock?">Low-stock products <span>↗</span></button></div><button class="run-button" id="run-query">Generate SQL <span>⌁</span></button><div class="result-heading"><span class="panel-kicker">POCKETSQL RESPONSE</span><span class="latency" id="latency">READY</span></div><div class="result-card"><div class="result-status"><span class="success-icon">✓</span><span>Valid read-only query</span><span class="result-tag">SELECT</span></div><pre id="sql-output"><span class="kw">SELECT</span>
+  c.name,
+  <span class="fn">SUM</span>(o.total_amount) <span class="kw">AS</span> total_spend
+<span class="kw">FROM</span> orders o
+<span class="kw">JOIN</span> customers c <span class="kw">ON</span> c.id = o.customer_id
+<span class="kw">GROUP BY</span> c.id, c.name
+<span class="kw">ORDER BY</span> total_spend <span class="kw">DESC</span>
+<span class="kw">LIMIT</span> <span class="num">5</span>;</pre><div class="result-footer"><span><span class="green-dot"></span> Safe to execute</span><span>inference · 42ms</span></div></div></div>
+        </div>
+      </section>
+
+      <section class="how-section shell" id="how-it-works"><div class="eyebrow">02 / THE APPROACH</div><div class="how-grid"><h2>Small model.<br /><em>Serious intent.</em></h2><div class="how-copy"><p>PocketSQL is an experiment in making text-to-SQL useful without making your database someone else’s business.</p><a class="text-link" href="#principles">See what we optimize for <span>↓</span></a></div></div><div class="steps"><div class="step"><span class="step-num">01</span><h3>Read the schema</h3><p>Ground every generation in the tables and columns that actually exist.</p></div><div class="step-arrow">→</div><div class="step"><span class="step-num">02</span><h3>Understand intent</h3><p>Map natural language to a structured query plan before writing SQL.</p></div><div class="step-arrow">→</div><div class="step"><span class="step-num">03</span><h3>Return safely</h3><p>Generate one executable SELECT statement. Nothing more, nothing less.</p></div></div></section>
+
+      <section class="principles-section shell" id="principles"><div class="principles-heading"><div class="eyebrow">03 / DESIGN PRINCIPLES</div><h2>Good AI feels<br /><em>considered.</em></h2></div><div class="principles-grid"><article><span class="principle-icon">◉</span><h3>Local by default</h3><p>Your schema, questions, and results stay on your machine. Privacy is an architecture decision.</p><span class="principle-index">A / 01</span></article><article><span class="principle-icon">⌁</span><h3>Grounded in reality</h3><p>Train and evaluate against schema changes, unfamiliar identifiers, and real query composition.</p><span class="principle-index">A / 02</span></article><article><span class="principle-icon">□</span><h3>Safe by construction</h3><p>Read-only output keeps the model in its lane: helping you understand data, not mutate it.</p><span class="principle-index">A / 03</span></article></div></section>
+
+      <section class="developers-section shell" id="developers"><div class="developers-heading"><div class="eyebrow">04 / FOR DEVELOPERS</div><h2>Ship the model<br /><em>where data lives.</em></h2><p>Run PocketSQL on Apple Silicon, keep inference local, and integrate it into the tools your team already uses.</p></div><div class="dev-content"><div class="dev-tabs"><button class="dev-tab active" data-tab="quickstart">QUICKSTART</button><button class="dev-tab" data-tab="python">PYTHON</button><button class="dev-tab" data-tab="server">PLAYGROUND SERVER</button></div><div class="code-window"><div class="code-window-top"><span><i></i><i></i><i></i></span><span class="code-path" id="code-path">terminal</span><button class="copy-button" id="copy-code">Copy <span>□</span></button></div><pre class="code-block" id="code-block" data-current="quickstart"><code><span class="comment"># create an environment and install PocketSQL</span>
+python3.13 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[dev]'
+
+<span class="comment"># run the local playground</span>
+python website/server.py</code></pre></div><div class="dev-notes"><div><span class="note-index">01</span><strong>Apple Silicon native</strong><p>Built around MLX for fast, private inference on your Mac.</p></div><div><span class="note-index">02</span><strong>One safe output</strong><p>Inference returns a single validated, read-only SELECT statement.</p></div><div><span class="note-index">03</span><strong>Use your checkpoint</strong><p>Set <code>POCKETSQL_CHECKPOINT</code> to point the server at another trained model.</p></div></div></div></section>
+
+      <section class="closing shell"><div class="closing-mark">⌁</div><div><div class="eyebrow">READY WHEN YOU ARE</div><h2>Make your database<br /><em>feel approachable.</em></h2><p>Explore the code, run it locally, and see what a focused model can do.</p><div class="hero-actions"><a class="button button-primary" href="#playground">Try PocketSQL <span>↗</span></a><a class="text-link" href="https://github.com" target="_blank" rel="noreferrer">Read the README <span>↗</span></a></div></div></section>
+    </main>
+    <footer class="footer shell"><a class="brand" href="#top"><span class="brand-mark">⌁</span><span>Pocket<span class="brand-dim">SQL</span></span></a><span>AN OPEN EXPERIMENT IN LOCAL AI</span><span>© 2025 POCKETSQL</span></footer>
+    <script src="app.js"></script>
+  </body>
+</html>

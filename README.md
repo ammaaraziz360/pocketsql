@@ -2,6 +2,16 @@
 
 PocketSQL is a Phase 1, locally trained text-to-SQL experiment for Apple Silicon. It trains a decoder-only MLX model to turn a SQLite schema plus a natural-language question into one read-only `SELECT` statement. It is not an API wrapper and does not require an external LLM.
 
+## Local playground
+
+The project includes a small local website that calls the trained model directly. From the repository root, with the project environment activated, run:
+
+```bash
+python website/server.py
+```
+
+Then open <http://127.0.0.1:4173>. The default checkpoint is `base-semantic-v14-factorized-best-execution`; set `POCKETSQL_CHECKPOINT` to use another checkpoint.
+
 ## Setup
 
 Use an Apple-Silicon Python 3.11, 3.12, or 3.13 environment (MLX does not currently support the workspace's Python 3.14):
@@ -209,6 +219,29 @@ python -m pocketsql.evaluation.evaluate --data data/casual-dev/casual.jsonl --ch
 ```
 
 Never include `data/casual-dev/casual.jsonl` in training.
+
+Build the stricter paired anti-memorization gate to measure how much accuracy
+survives when exact schema wording is removed. Each pair has the same unseen
+schema, database, and gold SQL. The first question names the identifiers; the
+second uses domain synonyms, and half of the pairs also use a held-out operation
+composition:
+
+```bash
+python -m pocketsql.data.anti_memorization \
+  --output data/anti-memorization-v1 \
+  --schemas 24 \
+  --seed 424242 \
+  --reference-data data/schema-linking-v13/mixed_train.jsonl
+
+python -m pocketsql.evaluation.evaluate \
+  --data data/anti-memorization-v1/anti_memorization.jsonl \
+  --checkpoint checkpoints/base-semantic-v14-factorized-best-execution \
+  --batch-size 8 \
+  --output data/anti-memorization-v1/results/v14/report.json
+```
+
+Never train on this gate. Its report includes direct-versus-paraphrased
+accuracy, paired retention, and separate familiar/held-out composition slices.
 
 Build the all-column copying gate separately. It requests every physical column
 at every position and is also evaluation-only:
@@ -544,6 +577,7 @@ experiments. On the unchanged frozen human gate:
 | v11 + constrained plan decoding | 67.94% | 6.81% | 10.22% (51/499) |
 | v12 + constrained plan decoding | 60.52% | 16.43% | 20.64% (103/499) |
 | v12 + explicit schema grounding | 64.33% | 22.65% | 24.25% (121/499) |
+| v12 + scoped foreign-key planner | 68.74% | 22.65% | 24.85% (124/499) |
 
 On unseen Spider dev, v12 improves execution from 10.81% to 20.54% relative
 to v11 under the same decoder. It also preserves the constrained-decoder
@@ -554,7 +588,7 @@ remaining tradeoff comes from constrained greedy decoding rather than the
 human-data fine-tune. Pass `--unconstrained-semantic-plan` to inference or
 evaluation only when reproducing those legacy scores.
 
-V12 is a meaningful generalization improvement, but 24.25% human execution is
+V12 is a meaningful generalization improvement, but 24.85% human execution is
 not alpha-ready. Do not tune another checkpoint against the now-observed frozen
 test results; use Spider dev diagnostics or create a new unseen benchmark gate.
 
@@ -566,15 +600,296 @@ single explicitly mentioned table over a contradictory decoded base table.
 These constraints change neither the checkpoint nor ambiguous requests; they
 only override a model decision when the grounded question states the pointer
 pair directly. On Spider dev this raises v12 execution from 20.54% (38/185) to
-24.32% (45/185). The natural and joined-aggregate synthetic gates rise from
-78.81% to 85.06% and from 59.25% to 66.00%, respectively.
+24.32% (45/185). A scoped foreign-key planner then reaches 24.86% (46/185):
+for non-aggregate/non-group queries it repairs or adds a two-table join only
+when the requested tables or grounded projection identify one unique declared
+foreign-key relationship. Ambiguous and disconnected relationships are not
+guessed. Frozen join execution doubles from 2/70 to 4/70, while the natural and
+joined-aggregate synthetic gates remain at 85.06% and 66.00%, respectively.
 
 Two v13 training experiments were rejected. A readable slot-label prompt
 changed the representation too aggressively and reached only 8.65% Spider-dev
 execution. A 24,000-example hard-family curriculum reached 21.62% on Spider
 dev, but regressed to 17.03% on the already-observed frozen gate and slightly
 reduced both synthetic gates. Consequently, the recommended model remains the
-v12 checkpoint with the current schema-grounding compiler.
+v12 checkpoint with the current schema-grounding compiler at that stage; the
+factorized v14 experiment below now supersedes it.
+
+#### Schema-linking oracle
+
+The component oracle replaces only table, join-path, and role-specific column
+references in the raw decoded plan. It preserves the model's aggregate
+function, projection/filter arity, filter operators and values, Boolean
+connector, grouping/order presence, sort direction, and limit. Run it with:
+
+```bash
+python -m pocketsql.evaluation.schema_oracle \
+  --data data/schema-linking-v13/human_validation.jsonl \
+  --checkpoint checkpoints/base-semantic-v12-human-best-execution \
+  --batch-size 16 \
+  --output-dir data/schema-linking-v13/results/v12-schema-oracle
+```
+
+On all 185 unseen Spider-dev examples, every raw target parses. Perfect schema
+links raise valid output from 69.73% to 95.68% and execution from 24.86%
+(46/185) to 42.70% (79/185): a gain of 17.84 percentage points and 33 newly
+correct queries without losing a previously correct query. The all-links
+ablation shows table/join selection is the largest schema component:
+
+| Schema information supplied | Execution | Correct |
+| --- | ---: | ---: |
+| none (production pipeline) | 24.86% | 46/185 |
+| tables and join path only | 31.89% | 59/185 |
+| all except tables/join | 32.43% | 60/185 |
+| all except projection | 36.76% | 68/185 |
+| all except group/order columns | 37.84% | 70/185 |
+| all except filter columns | 39.46% | 73/185 |
+| all schema links | 42.70% | 79/185 |
+
+This also establishes that a schema linker alone cannot make the model ready:
+only 35.14% of raw plans match every non-schema operation decision. Selection
+arity matches 72.43%, filter operators plus values 69.19%, and group arity
+82.70%. The next architecture should therefore factor the typed plan into a
+table/join selector, role-specific schema pointers, and separate operation/
+composition heads, starting with table/join selection but training and scoring
+the operation heads independently. The full report and row-level oracle SQL are
+stored under `data/schema-linking-v13/results/v12-schema-oracle/`.
+
+### V14 factorized schema architecture
+
+V14 keeps the semantic-plan language decoder for operations and arity, but adds
+separate supervised heads for the base table, optional joined table, join keys,
+projection columns, aggregate target, filter columns, grouping columns, and
+ordering column. Decoding scores only physical table-column pairs and declared
+foreign-key relationships. The production mode is conservative: a valid
+language-decoded plan is retained, and the factorized pointers are used only to
+rescue a schema-invalid plan. This prevents a weak pointer from overwriting an
+already valid answer.
+
+Train the selected three-epoch model from v12 with:
+
+```bash
+python -m pocketsql.training.train \
+  --config configs/base_semantic_v14_factorized.yaml \
+  --data data/spider-human-train-v1/mixed_train.jsonl \
+  --val-data data/spider-human-train-v1/mixed_validation.jsonl \
+  --checkpoint checkpoints/base-semantic-v14-factorized \
+  --initialize-from checkpoints/base-semantic-v12-human-best-execution
+```
+
+Use `checkpoints/base-semantic-v14-factorized-best-execution`. At epoch 3 it
+reaches 47.03% execution on the 640-example mixed validation set versus 45.94%
+for v12. Its complete active-pointer bundle is correct on 31.25% of examples;
+individual validation accuracy is 78.91% for the base table, 85.62% for join
+presence/table, 67.18% for projection columns, 73.05% for aggregate columns,
+and 61.18% for filter columns.
+
+| Gate | v12 execution | v14 hybrid execution | v12 valid | v14 valid |
+| --- | ---: | ---: | ---: | ---: |
+| unseen Spider dev (185) | 24.86% (46) | **29.73% (55)** | 69.73% | **87.57%** |
+| frozen human benchmark (499) | 24.85% (124) | **24.85% (124)** | 68.74% | **87.17%** |
+| natural synthetic gate (1,600) | 85.06% (1,361) | **85.31% (1,365)** | 96.38% | **99.25%** |
+| joined-aggregate gate (400) | 66.00% (264) | **66.50% (266)** | 90.00% | **97.25%** |
+
+This is a real architectural improvement, but 29.73% execution on unseen human
+questions is still not alpha-ready. Join-key and grouping-column pointers are
+the weakest heads, and valid-but-wrong plans now dominate failures. The next
+work should improve operation composition and those pointer heads rather than
+adding more deterministic repair rules.
+
+The frozen paired anti-memorization gate makes the remaining language gap more
+explicit. It contains 192 query pairs on 24 schemas: 99.56% of identifiers are
+absent from training, no schema or question is duplicated from training, and
+the paraphrases reduce schema-token overlap from 51.73% to 2.51% while keeping
+the gold SQL unchanged.
+
+| Anti-memorization slice | v12 execution | v14 execution | v14 exact/plan match |
+| --- | ---: | ---: | ---: |
+| direct identifier wording (192) | 52.08% | **53.13%** | 37.50% |
+| semantic paraphrase (192) | 7.81% | **8.33%** | 8.33% |
+| direct + held-out composition (96) | 39.58% | 39.58% | 22.92% |
+| paraphrase + held-out composition (96) | 0.00% | 0.00% | 0.00% |
+
+V14 raises overall valid output from 82.55% to 98.96%, but overall execution
+only from 29.95% to 30.73%. This confirms that the architecture mostly improves
+safe schema-grounded construction. It does not yet provide robust synonym
+linking or combine an unfamiliar paraphrase with an unseen SQL composition.
+
+### V15 semantic schema-linking experiment
+
+V15 tests whether readable schema labels and paired paraphrases can reduce the
+model's dependence on literal identifier words. The language decoder still
+receives the original canonical schema prompt. Only the factorized schema heads
+receive an auxiliary `SCHEMA LINKS` legend containing readable table and column
+labels, so the experiment does not change the decoder's target representation.
+The new dataset contains 7,200 paired direct/paraphrased examples on 400
+training schemas, 360 paraphrase-only examples on 40 disjoint validation
+schemas, and 7,200 replay examples from the v14 training mixture. The frozen
+anti-memorization vocabulary and schemas remain evaluation-only.
+
+A schema-head-only phase was rejected: its best paraphrase execution was 9.44%,
+below v14's 11.11%. Two epochs of joint training produced
+`checkpoints/base-semantic-v15-joint-best-execution`. The raw `replace` pointer
+policy also failed because its 6.11% complete-pointer accuracy overwrote many
+valid language-decoder plans. Use the conservative fallback policy when
+examining this research checkpoint:
+
+```bash
+python -m pocketsql.inference \
+  --checkpoint checkpoints/base-semantic-v15-joint-best-execution \
+  --factorized-schema-mode fallback \
+  --schema "$SCHEMA" \
+  --question "$QUESTION"
+```
+
+The fallback policy keeps a valid decoder plan and invokes factorized pointers
+only to rescue an invalid one. It produces substantial transfer within the
+synthetic language distribution, including on the anti-memorization gate that
+was first evaluated only after checkpoint selection:
+
+| Gate | v14 execution | v15 fallback execution |
+| --- | ---: | ---: |
+| paired direct wording (360) | 58.33% | **94.44%** |
+| paired semantic paraphrase (360) | 11.11% | **27.78%** |
+| frozen anti direct wording (192) | 53.13% | **83.33%** |
+| frozen anti semantic paraphrase (192) | 8.33% | **14.58%** |
+| anti direct + held-out composition (96) | 39.58% | **67.71%** |
+| anti paraphrase + held-out composition (96) | 0.00% | 0.00% |
+| unseen Spider dev (185) | **29.73%** | 22.16% |
+| frozen human benchmark (499) | **24.85%** | 24.65% |
+| joined-aggregate gate (400) | **66.50%** | 56.00% |
+
+This is evidence of useful but narrow generalization, not a new production
+winner. V15 maps several unseen paraphrases and identifier vocabularies better,
+but it still cannot combine an unfamiliar paraphrase with a held-out operation
+composition, and it regresses 7.57 points on unseen Spider questions. V14
+therefore remains the recommended broad checkpoint. The next experiment should
+retain more diverse human replay and learn a confidence-calibrated residual
+schema linker instead of allowing pointers to replace complete plans.
+
+### V16 human replay and confidence-gated residuals
+
+V16 increases human replay from roughly 2,200 examples in v15's sampled replay
+to 6,000 examples. Its 20,000-record training mixture also contains all 7,200
+paired semantic examples and 6,800 broad synthetic replays. Checkpoint
+selection uses a separate 1,000-record mixture: 320 resampled Spider-dev
+questions, 360 paraphrase-only examples on disjoint synthetic schemas, and 320
+general synthetic questions. The anti-memorization data is not loaded by the
+v16 mixture builder and remains a final evaluation-only gate.
+
+Build and train the experiment with:
+
+```bash
+python -m pocketsql.data.semantic_linking_v16 \
+  --output data/semantic-linking-v16
+
+python -m pocketsql.training.train \
+  --config configs/base_semantic_v16_residual.yaml \
+  --data data/semantic-linking-v16/mixed_train.jsonl \
+  --val-data data/semantic-linking-v16/mixed_validation.jsonl \
+  --checkpoint checkpoints/base-semantic-v16-residual \
+  --initialize-from checkpoints/base-semantic-v15-joint-best-execution
+```
+
+The residual linker normalizes pointer scores only across physically valid
+table/join and owner/column candidates. It can retain low-confidence roles from
+the decoder and always returns a schema-valid decoder plan before attempting a
+pointer rescue. Training raises complete active-pointer accuracy from 6.11% to
+25.80%. Nevertheless, confidence thresholds of 0.7 and 0.9 reach only 39.3%
+and 39.5% on the mixed selection set. Ordinary fallback reaches 40.3%, so the
+confidence policy is rejected and the v16 checkpoint must be run with fallback:
+
+```bash
+python -m pocketsql.inference \
+  --checkpoint checkpoints/base-semantic-v16-residual-best-execution \
+  --factorized-schema-mode fallback \
+  --schema "$SCHEMA" \
+  --question "$QUESTION"
+```
+
+| Gate | v14 | v15 fallback | v16 fallback |
+| --- | ---: | ---: | ---: |
+| mixed selection set (1,000) | 36.40% | 39.20% | **40.30%** |
+| paired direct wording (360) | 58.33% | 94.44% | **96.94%** |
+| paired semantic paraphrase (360) | 11.11% | 27.78% | **28.06%** |
+| unseen Spider dev (185) | **29.73%** | 22.16% | 24.86% |
+| frozen human benchmark (499) | 24.85% | 24.65% | **25.25%** |
+| joined-aggregate gate (400) | **66.50%** | 56.00% | 54.00% |
+| frozen anti-memorization gate (384) | 30.73% | 48.96% | **49.74%** |
+
+On the frozen anti gate, v16 reaches 84.90% on direct wording, 14.58% on
+semantic paraphrases, 70.83% on direct wording plus a held-out composition, and
+still 0% when both the paraphrase and composition are held out. The human-heavy
+replay recovers part of v15's Spider regression and improves the frozen human
+benchmark by two correct queries over v14, but it remains nine queries behind
+v14 on unseen Spider dev and loses 50 joined-aggregate queries. V16 is therefore
+an optional semantic-language specialist; v14 remains the recommended broad
+checkpoint. The next attempt should add genuinely diverse paraphrase/composition
+pairs and use a multi-gate selection objective instead of increasing epochs.
+
+### V17 dataset expansion
+
+V17 expands language and composition coverage before doing any further model
+scaling. The Spider curator now conservatively recognizes SQLite's legacy
+double-quoted filter values, but only when the value cannot name a schema
+identifier; the original and normalized queries must still execute identically.
+Using the 416-token v16 contract raises the usable, leakage-free Spider train
+split from 1,254 to 2,086 unique questions and its validation split from 185 to
+257. Thirteen train rows that duplicated a normalized question+SQL pair in the
+frozen human benchmark, plus two train/validation overlaps, are explicitly
+removed.
+
+The new synthetic portion contains 16,200 questions on 300 training schemas,
+split evenly across identifier-explicit, semantic-paraphrase, and terse request
+styles. It includes 4,500 examples from the four compositions that the earlier
+anti-memorization experiment withheld: joined aggregates with multiple filters,
+joined counts with multiple filters, filtered grouping, and
+distinct/filter/limit. A separate 864-question gate uses 24 schemas from three
+new domains and has zero schema, identifier, or exact-question overlap with
+training. `fresh_gate.jsonl` is evaluation-only and must not be used for
+checkpoint selection.
+
+Build and audit the 30,000-record mixture with:
+
+```bash
+python -m pocketsql.data.spider_training \
+  --output data/spider-human-v17-recovered \
+  --compatibility-config configs/base_semantic_v16_residual.yaml
+
+python -m pocketsql.data.semantic_expansion_v17 generate \
+  --output data/semantic-expansion-v17 \
+  --train-schemas 300 \
+  --validation-schemas 36 \
+  --gate-schemas 24
+
+python -m pocketsql.data.semantic_expansion_v17 mix \
+  --output data/semantic-expansion-v17-mixture
+
+python -m pocketsql.training.audit \
+  --config configs/base_semantic_v17_expanded.yaml \
+  --data data/semantic-expansion-v17-mixture/mixed_train.jsonl
+```
+
+The final mix contains 16,200 diverse semantic/composition questions, 8,000
+balanced replays from 2,086 unique human Spider questions, and 5,800 broad
+synthetic replays. Its 1,548-record validation set keeps disjoint synthetic and
+Spider schemas. All sequences fit the 416-token context, and exact pair checks
+find no overlap from training into validation, the fresh gate, or the frozen
+human benchmark.
+
+Training has not been run on v17 yet. When ready, initialize the experiment
+from v16 and keep fallback decoding for checkpoint selection:
+
+```bash
+python -m pocketsql.training.train \
+  --config configs/base_semantic_v17_expanded.yaml \
+  --data data/semantic-expansion-v17-mixture/mixed_train.jsonl \
+  --val-data data/semantic-expansion-v17-mixture/mixed_validation.jsonl \
+  --checkpoint checkpoints/base-semantic-v17-expanded \
+  --initialize-from checkpoints/base-semantic-v16-residual-best-execution \
+  --best-execution-checkpoint checkpoints/base-semantic-v17-expanded-best-execution \
+  --log-dir runs/base-semantic-v17-expanded
+```
 
 ## Inference and evaluation
 
@@ -583,7 +898,7 @@ python -m pocketsql.inference --checkpoint checkpoints/base-semantic-v12-human-b
 python -m pocketsql.evaluation.evaluate --data data/generated-position-robust-v8/test.jsonl --checkpoint checkpoints/base-external-augmented-best --batch-size 16
 ```
 
-`pocketsql.inference.generate_sql(model, schema, question)` stops at `</sql>` or `<eos>`, extracts only SQL, and rejects multi-statement or non-`SELECT` output. It grounds direct column/value pairs from the question, then asks SQLite to resolve every generated table and column against the supplied schema, so output such as `SELECT city FROM orders` is rejected when `city` belongs only to `customers`. A checkpoint produced only via `--overfit` on a handful of examples (as in the training commands above) has not learned to generalize, so it commonly raises `model output is not a single read-only SELECT` on new schemas/questions — that is expected, not a bug; the error message includes the raw decoded text for debugging. Train longer on the full split for usable generations.
+`pocketsql.inference.generate_sql(model, schema, question)` stops at `</sql>` or `<eos>`, extracts only SQL, and rejects multi-statement or non-`SELECT` output. It grounds direct column/value pairs, repairs a uniquely declared two-table foreign-key relationship where the supported planner applies, then asks SQLite to resolve every generated table and column against the supplied schema. Output such as `SELECT city FROM orders` is rejected when `city` belongs only to `customers`; ambiguous or disconnected join repairs are rejected rather than guessed. A checkpoint produced only via `--overfit` on a handful of examples (as in the training commands above) has not learned to generalize, so it commonly raises `model output is not a single read-only SELECT` on new schemas/questions — that is expected, not a bug; the error message includes the raw decoded text for debugging. Train longer on the full split for usable generations.
 
 `pocketsql.evaluation.evaluate` accepts either `--checkpoint <dir>` (generates predictions itself, one per record in `--data`) or `--predictions <file>` (a pre-existing file with one SQL statement, or one `{"sql": ...}` JSON object, per line matching `--data`'s record order). It reports syntax validity, executability, normalized exact match, execution accuracy, and per-family/difficulty metrics. SQLite evaluation is query-only and caps returned rows.
 
@@ -598,7 +913,8 @@ pytest
 Synthetic questions and SQL are both rendered from immutable typed `QueryPlan` objects. The MVP supports projection, `DISTINCT`, compatible filters with `AND`/`OR`, aggregates, grouping, ordering/limit, and declared two-table joins. It intentionally excludes subqueries, CTEs, window functions, mutations, and joins beyond two tables. The verbalizer is deliberately template-driven.
 
 For human-language experiments, the recommended checkpoint is
-`checkpoints/base-semantic-v12-human-best-execution`. The earlier
+`checkpoints/base-semantic-v14-factorized-best-execution`. The v12 checkpoint
+remains the autoregressive comparison baseline. The earlier
 `checkpoints/base-external-augmented-best` is the legacy direct-SQL baseline,
 with `checkpoints/base-position-robust-v8-best` and
 `checkpoints/base-gretel-augmented-best` retained for comparison.
