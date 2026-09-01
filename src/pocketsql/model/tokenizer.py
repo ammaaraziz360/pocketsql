@@ -20,6 +20,8 @@ class TokenizerProtocol(Protocol):
 
     def encode(self, text: str) -> list[int]: ...
 
+    def encode_with_offsets(self, text: str) -> tuple[list[int], list[tuple[int, int]]]: ...
+
     def decode(self, ids: list[int]) -> str: ...
 
     def save(self, path: Path) -> None: ...
@@ -42,18 +44,26 @@ class ByteTokenizer:
         return 256 + len(self.special_tokens)
 
     def encode(self, text: str) -> list[int]:
+        ids, _ = self.encode_with_offsets(text)
+        return ids
+
+    def encode_with_offsets(self, text: str) -> tuple[list[int], list[tuple[int, int]]]:
         ids: list[int] = []
+        offsets: list[tuple[int, int]] = []
         position = 0
         while position < len(text):
             token = next((item for item in self.special_tokens if text.startswith(item, position)), None)
             if token:
                 ids.append(self.token_to_id[token])
+                offsets.append((position, position + len(token)))
                 position += len(token)
             else:
                 char = text[position]
-                ids.extend(char.encode("utf-8"))
+                encoded = char.encode("utf-8")
+                ids.extend(encoded)
+                offsets.extend([(position, position + 1)] * len(encoded))
                 position += 1
-        return ids
+        return ids, offsets
 
     def decode(self, ids: list[int]) -> str:
         parts: list[str] = []
@@ -97,6 +107,10 @@ class BPETokenizer:
 
     def encode(self, text: str) -> list[int]:
         return self._tokenizer.encode(text, add_special_tokens=False).ids
+
+    def encode_with_offsets(self, text: str) -> tuple[list[int], list[tuple[int, int]]]:
+        encoded = self._tokenizer.encode(text, add_special_tokens=False)
+        return encoded.ids, encoded.offsets
 
     def decode(self, ids: list[int]) -> str:
         return self._tokenizer.decode(ids, skip_special_tokens=False)

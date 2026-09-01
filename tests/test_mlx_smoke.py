@@ -220,7 +220,7 @@ def test_validation_subset_spreads_samples_across_schemas_and_families():
 
 
 def test_batched_generation_matches_single_prompt_generation():
-    from pocketsql.inference import generate_sql_batch
+    from pocketsql.inference import generate_sql_batch, generate_sql_batch_with_targets
 
     model = tiny_model()
     tokenizer = ByteTokenizer()
@@ -229,5 +229,14 @@ def test_batched_generation_matches_single_prompt_generation():
 
     single = generate_sql_batch(model, [schema], [question], tokenizer, max_tokens=4)
     batched = generate_sql_batch(model, [schema, schema], [question, question], tokenizer, max_tokens=4)
+    checked, targets = generate_sql_batch_with_targets(
+        model,
+        [schema, schema],
+        [question, question],
+        tokenizer,
+        max_tokens=4,
+    )
 
     assert batched == single * 2
+    assert checked == batched
+    assert len(targets) == 2

@@ -833,11 +833,11 @@ V17 expands language and composition coverage before doing any further model
 scaling. The Spider curator now conservatively recognizes SQLite's legacy
 double-quoted filter values, but only when the value cannot name a schema
 identifier; the original and normalized queries must still execute identically.
-Using the 416-token v16 contract raises the usable, leakage-free Spider train
-split from 1,254 to 2,086 unique questions and its validation split from 185 to
-257. Thirteen train rows that duplicated a normalized question+SQL pair in the
-frozen human benchmark, plus two train/validation overlaps, are explicitly
-removed.
+Using the 416-token v16 contract raises the usable, leakage-free,
+model-compatible Spider train split from 1,254 to 1,918 unique questions and
+its validation split from 185 to 237. Candidates whose schemas exceed the
+model's table or column slot capacity are rejected before training, along with
+rows that overlap the frozen human benchmark or the validation split.
 
 The new synthetic portion contains 16,200 questions on 300 training schemas,
 split evenly across identifier-explicit, semantic-paraphrase, and terse request
@@ -871,14 +871,16 @@ python -m pocketsql.training.audit \
 ```
 
 The final mix contains 16,200 diverse semantic/composition questions, 8,000
-balanced replays from 2,086 unique human Spider questions, and 5,800 broad
+balanced replays from 1,918 unique human Spider questions, and 5,800 broad
 synthetic replays. Its 1,548-record validation set keeps disjoint synthetic and
 Spider schemas. All sequences fit the 416-token context, and exact pair checks
 find no overlap from training into validation, the fresh gate, or the frozen
 human benchmark.
 
-Training has not been run on v17 yet. When ready, initialize the experiment
-from v16 and keep fallback decoding for checkpoint selection:
+V17 was trained for two epochs from v16 with fallback decoding. Epoch 2 is the
+selected checkpoint: mixed validation execution is 27.07% (419/1,548), human
+validation is 20.60%, semantic-paraphrase validation is 7.25%, and complete
+active-pointer accuracy is 21.19%. Reproduce the run with:
 
 ```bash
 python -m pocketsql.training.train \
@@ -890,6 +892,208 @@ python -m pocketsql.training.train \
   --best-execution-checkpoint checkpoints/base-semantic-v17-expanded-best-execution \
   --log-dir runs/base-semantic-v17-expanded
 ```
+
+The final frozen comparison uses 2,867 examples per checkpoint and the same
+fallback decoder for v14, v16, and v17:
+
+| Evaluation slice | v14 | v16 | v17 |
+| --- | ---: | ---: | ---: |
+| complete five-gate battery (2,867) | 28.36% (813) | **36.83% (1,056)** | 34.15% (979) |
+| fresh v17 gate (864) | 6.37% (55) | 8.45% (73) | **9.61% (83)** |
+| fresh direct wording (432) | 11.57% | 13.66% | **15.28%** |
+| fresh semantic paraphrase (432) | 1.16% | 3.24% | **3.94%** |
+| frozen human benchmark (499) | 24.85% (124) | **25.25% (126)** | 25.05% (125) |
+| paired v15 gate (720) | 34.72% | **62.50%** | 53.75% |
+| frozen anti-memorization gate (384) | 30.73% | **49.74%** | 43.49% |
+| joined-aggregate gate (400) | **66.50%** | 54.00% | 54.25% |
+
+V17 improves the new gate by ten correct executions over v16 and raises fresh
+schema-component accuracy for tables from 47.57% to 61.57%, projection from
+22.92% to 31.94%, filters from 27.89% to 32.18%, and joins from 55.21% to
+64.35%. Those partial gains rarely assemble into a fully correct query: fresh
+execution is still 9.61%, nine of the eighteen fresh intent families remain at
+0%, and the frozen human result is unchanged. V17 also loses 63 correct paired
+executions and 24 anti-memorization executions relative to v16. It is therefore
+not promoted. V16 remains the strongest semantic-linking checkpoint, while v14
+remains the strongest joined-aggregate checkpoint. The next experiment should
+replace more dataset scaling with an explicit operation-skeleton decoder,
+question-to-schema cross-attention linker, and literal-copy mechanism.
+
+### V18 oracle ablation
+
+Before changing the architecture, the v16 checkpoint was evaluated with
+isolated gold corrections on development-only data: 648 held-out semantic
+paraphrases and 237 held-out Spider validation questions. Oracle plans are
+rendered directly so production grounding heuristics cannot alter the corrected
+component; compare them with the raw-plan baseline. A rescue ceiling keeps the
+correction only when it fixes execution.
+
+| Development slice | Raw plan | Schema links | Operations | Filter literals |
+| --- | ---: | ---: | ---: | ---: |
+| semantic paraphrases (648) | 5.25% (34) | **32.25% (209)** | 10.34% (67) | 5.25% (34) |
+| human Spider (237) | 12.66% (30) | **32.07% (76)** | 18.14% (43) | 13.50% (32) |
+
+Correct schema links are the largest isolated rescue on both sets. On the
+semantic set, projection and table/join corrections contribute most; on the
+human set, table/join selection is the largest single schema correction. The
+combined controls show that the remaining errors are not one-dimensional:
+
+| Development slice | Gold schema + decoded operations + gold literals | Gold schema + gold operations + decoded literals | Fully gold plan |
+| --- | ---: | ---: | ---: |
+| semantic paraphrases (648) | 54.01% (350) | 49.07% (318) | 100.00% |
+| human Spider (237) | 41.35% (98) | 67.51% (160) | 100.00% |
+
+The result supports all three v18 changes, in priority order: replace the
+pooled linear schema heads with question-to-schema cross-attention pointers;
+predict a compact operation skeleton instead of embedding structure inside the
+autoregressive plan; and copy filter literals from question spans without
+normalizing their text. The schema linker is the first implementation target,
+but neither structure nor value copying can be omitted from the completed v18
+design.
+
+### V18 structured architecture
+
+V18 implements that ablation result as a separate `structured_v18` model
+architecture. It retains the v16 transformer so the proven checkpoint can be
+used for initialization, then adds three jointly trained components:
+
+- table and column candidates cross-attend to every question token before the
+  role-specific schema pointers are scored;
+- fixed operation heads predict selection width, aggregation, join/filter/group
+  structure, ordering, direction, distinctness, connectors, and limit;
+- each filter predicts start and end pointers over question tokens, allowing
+  unseen and multi-token values to be copied rather than generated from the
+  vocabulary.
+
+The structured plan is compiled through the existing typed `QueryPlan`, foreign
+key validator, schema restorer, SQLite resolver, and read-only safety checks.
+`structured_plan_mode: replace` bypasses autoregressive decoding at inference,
+so execution depends on the explicit heads instead of a second free-form plan.
+
+The full v17 mixture passes the v18 supervision preflight: all 31,548 records
+fit the configured schema/operation capacities, all 28,189 filter values have
+question spans, the largest schema uses 11/16 tables and 31/32 columns, the
+longest structured prompt uses 371/416 tokens, and the longest copied literal
+uses 30/32 tokens. A real v16-to-v18 smoke update and checkpoint reload also
+complete successfully.
+
+The completed one-epoch frozen-backbone warm-up reaches 10.14% execution on the
+1,548-example mixed validation split (human 8.20%, semantic paraphrases 1.85%,
+synthetic 26.00%). That checkpoint is a training stage, not a promoted model.
+It already learns literal starts/ends at 73.53%/68.82% and filter operators at
+89.71%, while projection-column and filter-column pointers remain only 28.02%
+and 15.88%. Those results justify the second joint stage: schema representations,
+not literal extraction, are the main early bottleneck.
+
+The subsequent filter-linking experiment adds 6,300 contrastive examples across
+300 training schemas and a 504-example gate with 36 disjoint schemas. Each
+counterfactual group changes only the filter column while holding the schema,
+projection, operation, and literal fixed. A 64-example control reaches 100%
+filter-column accuracy, proving the head can learn the task. Target-only
+adaptation improves the intended pointer but hurts execution, so the final run
+mixes the contrastive corpus with 12,600 ordinary replay records and calibrates
+operation/literal heads afterward.
+
+| V18 checkpoint | Mixed execution | Filter column | Projection column | Complete pointers |
+| --- | ---: | ---: | ---: | ---: |
+| joint baseline | 11.24% | 15.81% | 31.55% | 5.94% |
+| target-only | 7.56% | 24.34% | 27.39% | 7.95% |
+| contrast + replay | 10.27% | **51.10%** | **43.64%** | **18.35%** |
+| calibrated contrast + replay | **11.82%** | **51.10%** | **43.64%** | **18.35%** |
+
+The calibrated checkpoint improves mixed execution by 0.58 points over V18
+joint, including human validation from 9.40% to 9.60% and synthetic validation
+from 29.00% to 31.50%; semantic paraphrases decline from 1.70% to 1.39%. It is
+not promoted because it remains far below v16's 27.07%, but the experiment
+demonstrates that targeted data can more than triple complete schema-pointer
+accuracy. The dedicated schema-disjoint contrastive gate still has 0% execution
+despite 47.02% filter-column accuracy, so the remaining multi-head composition
+problem is not hidden by the mixed score. The full analysis is in
+`artifacts/evaluations/v18-filter-contrast/SUMMARY.md`.
+
+### V19 compositional expansion
+
+V19 addresses the V18 multi-head assembly failure with complete query families
+instead of more isolated filter labels. `data/composition-expansion-v19`
+contains 14,400 training records, 1,728 schema-disjoint validation records, and
+1,152 lexically fresh gate records. Each of the 360 schemas contributes the
+same 48-plan cross-product of projections, comparison operators, Boolean
+connectors, aggregates, grouping, ordering, limits, and joins.
+
+Every new SQL statement executes and returns rows. All 2,520 counterfactual
+groups have distinct execution results, all active schema roles remain explicit
+after canonicalization, and the splits have zero schema or exact-question
+overlap. `data/composition-expansion-v19-replay/train.jsonl` mixes all 14,400
+new records with 28,800 ordinary V17 examples to reduce forgetting. Its 43,200
+sequences pass the tokenizer audit without truncation.
+
+The head-adaptation run is:
+
+```bash
+python -m pocketsql.training.train \
+  --config configs/base_semantic_v19_composition.yaml \
+  --data data/composition-expansion-v19-replay/train.jsonl \
+  --val-data data/semantic-expansion-v17-mixture/mixed_validation.jsonl \
+  --checkpoint checkpoints/base-semantic-v19-composition \
+  --initialize-from checkpoints/base-semantic-v18-filter-calibrated-best-execution \
+  --best-execution-checkpoint checkpoints/base-semantic-v19-composition-best-execution \
+  --log-dir runs/base-semantic-v19-composition
+```
+
+The unchanged mixed validation set remains the checkpoint-selection gate. The
+new validation and fresh-gate splits are additional promotion gates, not
+training inputs. Dataset details are in
+`artifacts/evaluations/v19-composition-expansion/SUMMARY.md`.
+
+The completed V19 run improves execution from 31.60% to 40.62% on its
+schema-disjoint composition gate and from 14.76% to 26.22% on the lexically
+fresh gate. It is not promoted because unchanged mixed validation declines from
+11.82% to 10.66%. The experimental checkpoint is
+`checkpoints/base-semantic-v19-composition-best-execution`.
+
+A nine-point interpolation sweep finds its best compromise at 25% V19:
+`checkpoints/base-semantic-v19-composition-blend-25` scores 11.63% on unchanged
+mixed validation, 33.68% on schema-disjoint composition, and 18.58% on the
+fresh gate. That retains composition gains while losing only three mixed-set
+queries versus V18, but it still fails the strict no-regression promotion rule.
+
+For 16 GB Macs, the V19 configuration uses true eager gradient accumulation:
+batch size 4 with four micro-batches, an 8 GiB MLX allocation ceiling, and a
+256 MiB cache limit. This fixes the former lazy-accumulation behavior that kept
+all four micro-batch graphs alive and forced macOS into heavy swap.
+
+Train V18 in two stages. First warm up only the new heads while keeping the v16
+backbone frozen:
+
+```bash
+python -m pocketsql.training.train \
+  --config configs/base_semantic_v18_structured_warmup.yaml \
+  --data data/semantic-expansion-v17-mixture/mixed_train.jsonl \
+  --val-data data/semantic-expansion-v17-mixture/mixed_validation.jsonl \
+  --checkpoint checkpoints/base-semantic-v18-structured-warmup \
+  --initialize-from checkpoints/base-semantic-v16-residual-best-execution \
+  --best-execution-checkpoint checkpoints/base-semantic-v18-structured-warmup-best-execution \
+  --log-dir runs/base-semantic-v18-structured-warmup
+```
+
+Then jointly fine-tune the backbone and structured heads at the lower learning
+rate:
+
+```bash
+python -m pocketsql.training.train \
+  --config configs/base_semantic_v18_structured.yaml \
+  --data data/semantic-expansion-v17-mixture/mixed_train.jsonl \
+  --val-data data/semantic-expansion-v17-mixture/mixed_validation.jsonl \
+  --checkpoint checkpoints/base-semantic-v18-structured \
+  --initialize-from checkpoints/base-semantic-v18-structured-warmup-best-execution \
+  --best-execution-checkpoint checkpoints/base-semantic-v18-structured-best-execution \
+  --log-dir runs/base-semantic-v18-structured
+```
+
+The warm-up checkpoint is not expected to be useful after a handful of smoke
+examples: all new heads begin randomly initialized. Promotion still requires
+the same frozen human, semantic-paraphrase, anti-memorization, and joined-
+aggregate gates used for v16 and v17.
 
 ## Inference and evaluation
 

@@ -130,6 +130,12 @@ def evaluate(records: list[dict], predictions: list[str], database_base_dir: Pat
     failure_counts = defaultdict(int)
     counterfactual_scores = defaultdict(list)
     counterfactual_changes = {}
+    anti_memorization_counts = defaultdict(lambda: [0, 0, 0, 0, 0])
+    semantic_linking_counts = defaultdict(lambda: [0, 0, 0, 0, 0])
+    evaluation_track_counts = defaultdict(lambda: [0, 0, 0, 0, 0])
+    composition_novelty_counts = defaultdict(lambda: [0, 0, 0, 0, 0])
+    anti_memorization_slice_counts = defaultdict(lambda: [0, 0, 0, 0, 0])
+    anti_memorization_pairs = defaultdict(dict)
     component_totals: Counter = Counter()
     component_records = 0
     totals = [0, 0, 0, 0]
@@ -142,6 +148,12 @@ def evaluate(records: list[dict], predictions: list[str], database_base_dir: Pat
             group = record["counterfactual_group"]
             counterfactual_scores[group].append(scored["execution_accuracy"])
             counterfactual_changes[group] = record.get("counterfactual_change", "unknown")
+        if record.get("anti_memorization_pair") and record.get("anti_memorization_track"):
+            anti_memorization_pairs[record["anti_memorization_pair"]][record["anti_memorization_track"]] = {
+                "execution_accuracy": scored["execution_accuracy"],
+                "exact_match": scored["exact_match"],
+                "semantic_plan_match": scored.get("semantic_components", {}).get("semantic_plan_match", 0),
+            }
         metrics = tuple(scored[name] for name in ("syntactically_valid", "executable", "exact_match", "execution_accuracy"))
         failure_counts[scored["failure"]] += 1
         for index, value in enumerate(metrics):
@@ -163,6 +175,22 @@ def evaluate(records: list[dict], predictions: list[str], database_base_dir: Pat
         for index, value in enumerate(metrics):
             schema_counts[schema_key][index] += value
         schema_counts[schema_key][4] += 1
+        for field, grouped in (
+            ("anti_memorization_track", anti_memorization_counts),
+            ("semantic_linking_track", semantic_linking_counts),
+            ("evaluation_track", evaluation_track_counts),
+            ("composition_novelty", composition_novelty_counts),
+        ):
+            if record.get(field):
+                values = grouped[record[field]]
+                for index, value in enumerate(metrics):
+                    values[index] += value
+                values[4] += 1
+        if record.get("anti_memorization_track") and record.get("composition_novelty"):
+            key = f"{record['anti_memorization_track']}:{record['composition_novelty']}"
+            for index, value in enumerate(metrics):
+                anti_memorization_slice_counts[key][index] += value
+            anti_memorization_slice_counts[key][4] += 1
     names = ("syntactically_valid", "executable", "exact_match", "execution_accuracy")
     result = {"records": len(records), **{name: totals[index] / max(len(records), 1) for index, name in enumerate(names)}}
     result["execution_accuracy_given_valid"] = totals[3] / max(totals[0], 1)
@@ -207,6 +235,63 @@ def evaluate(records: list[dict], predictions: list[str], database_base_dir: Pat
         result["counterfactual_pair_accuracy"] = sum(complete_pairs.values()) / len(complete_pairs)
         result["counterfactual_pair_accuracy_by_change"] = {
             change: sum(scores) / len(scores) for change, scores in sorted(by_change.items())
+        }
+    def grouped_metrics(grouped: dict) -> dict:
+        return {
+            key: {**{name: values[index] / values[4] for index, name in enumerate(names)}, "examples": values[4]}
+            for key, values in sorted(grouped.items())
+        }
+
+    if anti_memorization_counts:
+        result["by_anti_memorization_track"] = grouped_metrics(anti_memorization_counts)
+    if semantic_linking_counts:
+        result["by_semantic_linking_track"] = grouped_metrics(semantic_linking_counts)
+    if evaluation_track_counts:
+        result["by_evaluation_track"] = grouped_metrics(evaluation_track_counts)
+    if composition_novelty_counts:
+        result["by_composition_novelty"] = grouped_metrics(composition_novelty_counts)
+    if anti_memorization_slice_counts:
+        result["by_anti_memorization_slice"] = grouped_metrics(anti_memorization_slice_counts)
+    if anti_memorization_pairs:
+        complete = [
+            scores
+            for scores in anti_memorization_pairs.values()
+            if {"direct_identifier", "semantic_paraphrase"} <= scores.keys()
+        ]
+        direct_correct = sum(scores["direct_identifier"]["execution_accuracy"] for scores in complete)
+        paraphrase_correct = sum(scores["semantic_paraphrase"]["execution_accuracy"] for scores in complete)
+        both_correct = sum(
+            scores["direct_identifier"]["execution_accuracy"]
+            and scores["semantic_paraphrase"]["execution_accuracy"]
+            for scores in complete
+        )
+        paraphrase_rescues = sum(
+            not scores["direct_identifier"]["execution_accuracy"]
+            and scores["semantic_paraphrase"]["execution_accuracy"]
+            for scores in complete
+        )
+        def paired_accuracy(metric: str, track: str) -> float:
+            return sum(scores[track][metric] for scores in complete) / max(len(complete), 1)
+
+        def both_accuracy(metric: str) -> float:
+            return sum(
+                scores["direct_identifier"][metric] and scores["semantic_paraphrase"][metric]
+                for scores in complete
+            ) / max(len(complete), 1)
+
+        result["anti_memorization_pairs"] = {
+            "pairs": len(complete),
+            "direct_execution_accuracy": direct_correct / max(len(complete), 1),
+            "paraphrase_execution_accuracy": paraphrase_correct / max(len(complete), 1),
+            "both_correct_accuracy": both_correct / max(len(complete), 1),
+            "paraphrase_retention_given_direct_correct": both_correct / max(direct_correct, 1),
+            "paraphrase_rescue_given_direct_wrong": paraphrase_rescues / max(len(complete) - direct_correct, 1),
+            "direct_exact_match": paired_accuracy("exact_match", "direct_identifier"),
+            "paraphrase_exact_match": paired_accuracy("exact_match", "semantic_paraphrase"),
+            "both_exact_match_accuracy": both_accuracy("exact_match"),
+            "direct_semantic_plan_accuracy": paired_accuracy("semantic_plan_match", "direct_identifier"),
+            "paraphrase_semantic_plan_accuracy": paired_accuracy("semantic_plan_match", "semantic_paraphrase"),
+            "both_semantic_plan_accuracy": both_accuracy("semantic_plan_match"),
         }
     return result
 
@@ -276,6 +361,18 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=8, help="Number of prompts decoded together when generating predictions.")
     parser.add_argument("--max-tokens", type=int, default=None, help="Override the generation cap stored in the checkpoint.")
     parser.add_argument(
+        "--factorized-schema-mode",
+        choices=("fallback", "replace", "confidence", "disabled"),
+        default=None,
+        help="Override how factorized schema pointers are applied for this evaluation.",
+    )
+    parser.add_argument(
+        "--factorized-schema-confidence-threshold",
+        type=float,
+        default=None,
+        help="Minimum constrained pointer confidence in confidence mode.",
+    )
+    parser.add_argument(
         "--unconstrained-semantic-plan",
         action="store_true",
         help="Disable semantic-plan grammar constraints for legacy score reproduction.",
@@ -303,6 +400,16 @@ def main() -> None:
 
         tokenizer = load_tokenizer(Path(args.checkpoint))
         model = load_model_from_checkpoint(args.checkpoint, tokenizer)
+        if args.factorized_schema_mode is not None:
+            model.factorized_schema_mode = args.factorized_schema_mode
+        if args.factorized_schema_confidence_threshold is not None:
+            if not 0.0 <= args.factorized_schema_confidence_threshold <= 1.0:
+                raise SystemExit(
+                    "--factorized-schema-confidence-threshold must be between zero and one"
+                )
+            model.factorized_schema_confidence_threshold = (
+                args.factorized_schema_confidence_threshold
+            )
         if args.unconstrained_semantic_plan:
             model.constrain_semantic_plan = False
         predictions = generate_predictions(model, records, tokenizer, batch_size=args.batch_size, max_tokens=args.max_tokens, show_progress=True)

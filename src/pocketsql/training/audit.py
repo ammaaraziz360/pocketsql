@@ -20,6 +20,8 @@ def audit_sequences(
     canonicalize_literals: bool = False,
     target_format: str = "sql",
     schema_linking_hints: bool = False,
+    schema_linking_max_tables: int = 5,
+    schema_linking_max_columns: int = 8,
 ) -> dict:
     zero_target = 0
     partial_target = 0
@@ -37,6 +39,8 @@ def audit_sequences(
                 canonicalize_literals,
                 target_format,
                 schema_linking_hints,
+                schema_linking_max_tables,
+                schema_linking_max_columns,
             )
         )
         sql_marker = tokens.index(tokenizer.sql_start_id)
@@ -100,6 +104,8 @@ def main() -> None:
         config.get("canonicalize_literals", False),
         config.get("target_format", "sql"),
         config.get("schema_linking_hints", False),
+        config.get("schema_linking_max_tables", 5),
+        config.get("schema_linking_max_columns", 8),
     )
     print(json.dumps(report, indent=2, sort_keys=True))
     if not args.allow_truncation:

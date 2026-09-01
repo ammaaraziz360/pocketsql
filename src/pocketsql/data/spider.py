@@ -23,7 +23,7 @@ import yaml
 from pocketsql.data.gretel import GretelRejected, query_plan_from_sql
 from pocketsql.data.render_sql import render_sql
 from pocketsql.evaluation.normalize import normalize_sql
-from pocketsql.model.schema_grounding import canonicalize_inputs, canonicalize_record
+from pocketsql.model.schema_grounding import canonicalize_inputs, canonicalize_record, identifier_mapping
 from pocketsql.model.tokenizer import load_tokenizer
 from pocketsql.training.audit import audit_sequences
 
@@ -224,6 +224,63 @@ def _mentioned(question: str, value: str | int | float) -> bool:
     )
 
 
+def _normalize_double_quoted_filter_literals(sql: str, metadata: dict) -> tuple[str, int]:
+    """Recover Spider's SQLite-style double-quoted string values conservatively.
+
+    Spider 1.0 frequently writes filter values as ``"value"``. SQLite accepts an
+    unknown double-quoted identifier as a string for backwards compatibility, but
+    sqlglot correctly parses it as an identifier. Only rewrite a comparison's
+    unqualified right-hand side when it cannot name any table or column in the
+    prompt schema. Original and rewritten queries are still execution-compared by
+    :func:`convert_example`, so this does not weaken the curation contract.
+    """
+    try:
+        import sqlglot
+        from sqlglot import exp
+    except ImportError as exc:  # pragma: no cover - external-data extra is required
+        raise RuntimeError("Install PocketSQL with the external-data extra to import Spider") from exc
+
+    try:
+        trees = sqlglot.parse(sql, read="sqlite")
+    except Exception:
+        return sql, 0
+    if len(trees) != 1 or not isinstance(trees[0], exp.Select):
+        return sql, 0
+
+    schema_identifiers = {
+        name.casefold()
+        for name in metadata.get("table_names_original", ())
+        if isinstance(name, str)
+    }
+    schema_identifiers.update(
+        name.casefold()
+        for table_index, name in metadata.get("column_names_original", ())
+        if table_index >= 0 and isinstance(name, str)
+    )
+    comparisons = (exp.EQ, exp.GT, exp.GTE, exp.LT, exp.LTE)
+    rewritten = 0
+    where = trees[0].args.get("where")
+    if where is None:
+        return sql, 0
+    for comparison in where.find_all(*comparisons):
+        right = comparison.right
+        while isinstance(right, (exp.Paren, exp.Alias)):
+            right = right.this
+        if not isinstance(right, exp.Column) or right.table:
+            continue
+        identifier = right.this
+        if not isinstance(identifier, exp.Identifier) or not identifier.args.get("quoted"):
+            continue
+        value = identifier.this
+        if not isinstance(value, str) or value.casefold() in schema_identifiers:
+            continue
+        comparison.set("expression", exp.Literal.string(value))
+        rewritten += 1
+    if not rewritten:
+        return sql, 0
+    return trees[0].sql(dialect="sqlite"), rewritten
+
+
 def _family(plan) -> str:
     if plan.join_table and plan.aggregate:
         return "spider_joined_aggregate"
@@ -266,9 +323,16 @@ def _equivalent(left: list[tuple], right: list[tuple], ordered: bool) -> bool:
     return left == right if ordered else Counter(left) == Counter(right)
 
 
-def _fits_configs(record: dict, configs: list[tuple[dict, object]]) -> bool:
+def _config_incompatibility(record: dict, configs: list[tuple[dict, object]]) -> str | None:
     for config, tokenizer in configs:
         try:
+            mapping = identifier_mapping(
+                record["schema_sql"], config.get("identifier_slot_strategy", "ordered")
+            )
+            if len(mapping.table_to_slot) > config.get("max_table_slots", 16):
+                return "schema_slot_capacity_exceeded"
+            if len(mapping.column_to_slot) > config.get("max_column_slots", 32):
+                return "schema_slot_capacity_exceeded"
             report = audit_sequences(
                 [record],
                 tokenizer,
@@ -283,8 +347,8 @@ def _fits_configs(record: dict, configs: list[tuple[dict, object]]) -> bool:
         except (KeyError, TypeError, ValueError) as exc:
             raise SpiderRejected("schema_grounding_error") from exc
         if report["complete_sequences"] != 1 or report["generation_targets_over_cap"]:
-            return False
-    return True
+            return "sequence_too_long"
+    return None
 
 
 def convert_example(
@@ -299,8 +363,11 @@ def convert_example(
     """Convert and execution-check one human-authored Spider example."""
     configs = configs or []
     schema_sql = schema_sql_from_metadata(metadata)
+    parser_sql, normalized_literal_count = _normalize_double_quoted_filter_literals(
+        source["query"], metadata
+    )
     try:
-        plan = query_plan_from_sql(source["query"])
+        plan = query_plan_from_sql(parser_sql)
     except GretelRejected as exc:
         raise SpiderRejected(str(exc)) from exc
     plan = replace(plan, family=_family(plan))
@@ -350,6 +417,9 @@ def convert_example(
             "index": source_index,
             "db_id": db_id,
             "original_sql": source["query"].strip(),
+            "parser_sql_normalizations": {
+                "double_quoted_filter_literals": normalized_literal_count,
+            },
             "human_authored": True,
             "training_use_allowed": training_use_allowed,
         },
@@ -370,8 +440,9 @@ def convert_example(
         or not mapping.accepts_sql(inference_sql)
     ):
         raise SpiderRejected("training_inference_grounding_mismatch")
-    if not _fits_configs(record, configs):
-        raise SpiderRejected("sequence_too_long")
+    incompatibility = _config_incompatibility(record, configs)
+    if incompatibility:
+        raise SpiderRejected(incompatibility)
     return record
 
 

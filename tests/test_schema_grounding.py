@@ -61,6 +61,9 @@ CREATE TABLE orders (order_id INTEGER PRIMARY KEY, customer_id INTEGER REFERENCE
         "ON orders.customer_id = customers.customer_id "
         "WHERE customers.city = 'houston';"
     )
+    assert mapping.declared_joins(orders, customers) == (
+        (f"{orders}.{customer_id}", f"{customers}.{customer_id}"),
+    )
 
 
 def test_literal_grounding_handles_count_for_location_without_binding_group_words():
@@ -145,6 +148,29 @@ def test_training_format_and_mask_use_canonical_targets_when_enabled():
     ids, mask = encode_record(record, ByteTokenizer(), 1024, canonicalize_identifiers=True)
     assert len(ids) == len(mask)
     assert any(mask)
+
+
+def test_canonicalized_record_keeps_overlapping_table_and_column_names_in_their_namespaces():
+    record = {
+        "schema_sql": "CREATE TABLE Certifications (id INT, country TEXT, certifications INT);",
+        "question": "How many certifications were granted in Canada?",
+        "sql": "SELECT SUM(certifications) FROM Certifications WHERE country = 'Canada';",
+        "query_plan": {
+            "family": "aggregate",
+            "table": "Certifications",
+            "columns": [],
+            "aggregate": "SUM",
+            "aggregate_column": "certifications",
+            "filters": [{"column": "country", "operator": "=", "value": "Canada"}],
+        },
+    }
+
+    canonical = canonicalize_record(record, canonicalize_literals=True)
+
+    assert canonical["schema_sql"] == "CREATE TABLE table0 (column0 INT, column1 TEXT, column2 INT);"
+    assert canonical["sql"] == "SELECT SUM(column2) FROM table0 WHERE column1 = value0;"
+    assert canonical["query_plan"]["table"] == "table0"
+    assert canonical["query_plan"]["aggregate_column"] == "column2"
 
 
 def test_casual_singular_and_plural_mentions_link_to_schema_slots():
@@ -488,7 +514,7 @@ CREATE TABLE orders (order_id INTEGER PRIMARY KEY, customer_id INTEGER REFERENCE
         question,
     ) == (
         "SELECT orders.* FROM orders INNER JOIN customers "
-        "ON customers.customer_id = orders.customer_id "
+        "ON orders.customer_id = customers.customer_id "
         "WHERE customers.name = 'max' AND customers.city = 'dallas';"
     )
 
@@ -541,3 +567,104 @@ def test_explicit_filter_hints_bind_direct_reversed_and_inherited_values():
 
 def test_explicit_filter_hints_do_not_guess_from_loose_projection_proximity():
     assert _explicit_filter_column_hints("show the average column5 before value0") == {}
+
+
+def test_semantic_target_infers_a_unique_foreign_key_join_from_column_ownership():
+    _, question, mapping = canonicalize_inputs(SCHEMA, QUESTION, "permuted", True)
+    organizations = mapping.table_to_slot["organizations"]
+    contracts = mapping.table_to_slot["contracts"]
+    legal_title = mapping.column_to_slot["legal_title"]
+    contract_value = mapping.column_to_slot["contract_value"]
+
+    assert _finish_target(
+        f"T {organizations} | S {organizations}.{legal_title},{contracts}.{contract_value}",
+        SimpleNamespace(target_format="semantic_plan"),
+        mapping,
+        SCHEMA,
+        question,
+    ) == (
+        "SELECT organizations.legal_title, contracts.contract_value "
+        "FROM organizations INNER JOIN contracts "
+        "ON contracts.organization_key = organizations.organization_key;"
+    )
+
+
+def test_semantic_target_does_not_infer_join_from_unrequested_model_column():
+    _, question, mapping = canonicalize_inputs(
+        SCHEMA,
+        "show organization legal titles",
+        "permuted",
+        True,
+    )
+    organizations = mapping.table_to_slot["organizations"]
+    contracts = mapping.table_to_slot["contracts"]
+    legal_title = mapping.column_to_slot["legal_title"]
+    contract_value = mapping.column_to_slot["contract_value"]
+
+    assert _finish_target(
+        f"T {organizations} | S {organizations}.{legal_title},{contracts}.{contract_value}",
+        SimpleNamespace(target_format="semantic_plan"),
+        mapping,
+        SCHEMA,
+        question,
+    ) == "SELECT legal_title FROM organizations;"
+
+
+def test_semantic_target_repairs_wrong_join_keys_when_foreign_key_is_unique():
+    _, question, mapping = canonicalize_inputs(SCHEMA, QUESTION, "permuted", True)
+    organizations = mapping.table_to_slot["organizations"]
+    contracts = mapping.table_to_slot["contracts"]
+    legal_title = mapping.column_to_slot["legal_title"]
+    contract_value = mapping.column_to_slot["contract_value"]
+
+    target = (
+        f"T {organizations} | S {organizations}.{legal_title},{contracts}.{contract_value} | "
+        f"J {contracts} {organizations}.{legal_title} {contracts}.{contract_value}"
+    )
+    sql = _finish_target(
+        target,
+        SimpleNamespace(target_format="semantic_plan"),
+        mapping,
+        SCHEMA,
+        question,
+    )
+
+    assert "ON contracts.organization_key = organizations.organization_key" in sql
+
+
+def test_semantic_target_rejects_ambiguous_foreign_key_repair():
+    schema = """CREATE TABLE users (user_id INTEGER PRIMARY KEY, name TEXT);
+CREATE TABLE posts (post_id INTEGER PRIMARY KEY, author_id INTEGER REFERENCES users(user_id), editor_id INTEGER REFERENCES users(user_id), title TEXT);"""
+    _, question, mapping = canonicalize_inputs(schema, "show user posts", "permuted", True)
+    users = mapping.table_to_slot["users"]
+    posts = mapping.table_to_slot["posts"]
+    user_id = mapping.column_to_slot["user_id"]
+    post_id = mapping.column_to_slot["post_id"]
+    title = mapping.column_to_slot["title"]
+
+    assert _finish_target(
+        f"T {posts} | S {posts}.{title} | J {users} {posts}.{post_id} {users}.{user_id}",
+        SimpleNamespace(target_format="semantic_plan"),
+        mapping,
+        schema,
+        question,
+    ) == ""
+
+
+def test_semantic_target_rejects_join_between_disconnected_tables():
+    schema = """CREATE TABLE users (user_id INTEGER PRIMARY KEY, name TEXT);
+CREATE TABLE logs (log_id INTEGER PRIMARY KEY, message TEXT);"""
+    _, question, mapping = canonicalize_inputs(schema, "show user logs", "permuted", True)
+    users = mapping.table_to_slot["users"]
+    logs = mapping.table_to_slot["logs"]
+    user_id = mapping.column_to_slot["user_id"]
+    log_id = mapping.column_to_slot["log_id"]
+    message = mapping.column_to_slot["message"]
+
+    assert _finish_target(
+        f"T {logs} | S {logs}.{message} | J {users} {logs}.{log_id} {users}.{user_id}",
+        SimpleNamespace(target_format="semantic_plan"),
+        mapping,
+        schema,
+        question,
+    ) == ""

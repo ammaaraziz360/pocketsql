@@ -2,6 +2,7 @@ import json
 import random
 import sqlite3
 
+from pocketsql.data.anti_memorization import write_anti_memorization_dataset
 from pocketsql.data.challenge import write_challenge_dataset
 from pocketsql.data.casual_dev import write_casual_dev_dataset
 from pocketsql.data.column_copy_dev import write_column_copy_dev_dataset
@@ -24,6 +25,9 @@ from pocketsql.data.populate import populate
 from pocketsql.data.query_ast import Filter, QueryPlan
 from pocketsql.data.render_sql import render_sql
 from pocketsql.data.schemas import make_schema
+from pocketsql.data.semantic_linking import write_semantic_linking_dataset
+from pocketsql.data.semantic_expansion_v17 import _pair_overlap_counts, write_semantic_expansion_dataset
+from pocketsql.data.semantic_linking_v16 import build_v16_mixture
 from pocketsql.data.validate import validate_sql
 from pocketsql.data.verbalize import casual_verbalize
 
@@ -148,6 +152,200 @@ def test_grounding_dev_uses_unique_opaque_identifiers(tmp_path):
     assert report["training_use_allowed"] is False
     assert all(split["duplicate_schema_question_pairs"] == 0 for split in report["splits"].values())
     assert report["generation"]["discarded_invalid_sql"] == 0
+
+
+def test_anti_memorization_gate_pairs_direct_and_paraphrased_questions(tmp_path):
+    reference_splits = build_records(8, 20, 5)
+    reference = tmp_path / "train.jsonl"
+    reference.write_text(
+        "".join(json.dumps(record) + "\n" for record in reference_splits["train"]), encoding="utf-8"
+    )
+    output = tmp_path / "anti-memory"
+
+    counts = write_anti_memorization_dataset(output, schemas=4, seed=31, reference_data=reference)
+    records = [
+        json.loads(line)
+        for line in (output / "anti_memorization.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    report = json.loads((output / "quality_report.json").read_text(encoding="utf-8"))
+    pairs: dict[str, list[dict]] = {}
+    for record in records:
+        pairs.setdefault(record["anti_memorization_pair"], []).append(record)
+
+    assert counts == {"records": 64, "pairs": 32, "schemas": 4}
+    assert all(len(pair) == 2 for pair in pairs.values())
+    assert all(pair[0]["schema_sql"] == pair[1]["schema_sql"] for pair in pairs.values())
+    assert all(pair[0]["sql"] == pair[1]["sql"] for pair in pairs.values())
+    assert all(pair[0]["question"] != pair[1]["question"] for pair in pairs.values())
+    assert report["profile"] == "paired_anti_memorization_v1"
+    assert report["training_use_allowed"] is False
+    assert report["exact_schema_overlap_vs_reference"] == 0
+    assert report["mean_question_schema_token_overlap"]["semantic_paraphrase"] < report[
+        "mean_question_schema_token_overlap"
+    ]["direct_identifier"]
+    assert set(report["composition_counts"]) == {"familiar_composition", "held_out_composition"}
+
+
+def test_semantic_linking_data_is_paired_disjoint_and_excludes_heldout_compositions(tmp_path):
+    replay_splits = build_records(8, 20, 5)
+    replay = tmp_path / "replay.jsonl"
+    replay.write_text(
+        "".join(json.dumps(record) + "\n" for record in replay_splits["train"]), encoding="utf-8"
+    )
+    heldout = tmp_path / "heldout.jsonl"
+    heldout.write_text(
+        json.dumps(
+            {
+                "schema_sql": "CREATE TABLE novel_entities (novel_key INTEGER, novel_label TEXT);",
+                "question": "unused",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    output = tmp_path / "semantic-linking"
+
+    counts = write_semantic_linking_dataset(
+        output,
+        train_schemas=3,
+        validation_schemas=2,
+        seed=37,
+        replay_data=replay,
+        replay_records=10,
+        heldout_data=heldout,
+    )
+    train = [json.loads(line) for line in (output / "train.jsonl").read_text().splitlines()]
+    paired = [json.loads(line) for line in (output / "paired_validation.jsonl").read_text().splitlines()]
+    report = json.loads((output / "quality_report.json").read_text())
+
+    assert counts == {"train": 54, "mixed_train": 64, "validation": 18, "paired_validation": 36}
+    assert {record["semantic_linking_track"] for record in train} == {
+        "direct_identifier",
+        "semantic_paraphrase",
+    }
+    assert {record["schema_sql"] for record in train}.isdisjoint(
+        {record["schema_sql"] for record in paired}
+    )
+    assert report["held_out_compositions_in_training"] == 0
+    assert report["identifier_overlap_with_heldout"] == 0
+
+
+def test_v17_expansion_varies_language_composition_and_reserves_fresh_gate(tmp_path):
+    output = tmp_path / "semantic-v17"
+
+    report = write_semantic_expansion_dataset(
+        output,
+        train_schemas=2,
+        validation_schemas=1,
+        gate_schemas=1,
+        seed=1717,
+    )
+    train = [json.loads(line) for line in (output / "train.jsonl").read_text().splitlines()]
+    paired = [
+        json.loads(line) for line in (output / "paired_validation.jsonl").read_text().splitlines()
+    ]
+    gate = [json.loads(line) for line in (output / "fresh_gate.jsonl").read_text().splitlines()]
+
+    assert report["records"] == {
+        "train": 108,
+        "validation": 18,
+        "paired_validation": 36,
+        "fresh_gate": 36,
+    }
+    assert {record["semantic_linking_track"] for record in train} == {
+        "direct_identifier",
+        "semantic_paraphrase",
+        "terse_request",
+    }
+    assert report["historically_held_out_training_records"] > 0
+    assert {record["schema_sql"] for record in train}.isdisjoint(
+        {record["schema_sql"] for record in paired + gate}
+    )
+    assert report["isolation"] == {
+        "train_validation_schema_overlap": 0,
+        "training_gate_schema_overlap": 0,
+        "training_gate_exact_question_overlap": 0,
+        "training_gate_identifier_overlap": 0,
+        "fresh_gate_in_training": False,
+    }
+    assert all(record["source"]["training_use_allowed"] is False for record in gate)
+
+
+def test_v17_pair_overlap_check_catches_cross_schema_question_sql_copy():
+    training = [{"schema_sql": "CREATE TABLE a (x TEXT);", "question": "show x", "sql": "SELECT x FROM a;"}]
+    copied = [{"schema_sql": "CREATE TABLE b (x TEXT);", "question": "show x", "sql": "SELECT x FROM a;"}]
+
+    assert _pair_overlap_counts(training, copied) == {"question_sql": 1}
+
+
+def test_v16_mixture_increases_human_replay_and_preserves_frozen_isolation(tmp_path):
+    records = build_records(10, 4, 1616)["train"]
+
+    def write(name, selected):
+        path = tmp_path / name
+        path.write_text(
+            "".join(json.dumps(record) + "\n" for record in selected),
+            encoding="utf-8",
+        )
+        return path
+
+    semantic_train = [
+        {**record, "semantic_linking_track": "semantic_paraphrase"}
+        for record in records[:2]
+    ]
+    semantic_validation = [
+        {**record, "semantic_linking_track": "semantic_paraphrase"}
+        for record in records[2:4]
+    ]
+    human_train = [
+        {
+            **record,
+            "source": {
+                "db_id": f"human_train_{index}",
+                "training_use_allowed": True,
+            },
+        }
+        for index, record in enumerate(records[4:7])
+    ]
+    human_validation = [
+        {**record, "source": {"db_id": f"human_validation_{index}"}}
+        for index, record in enumerate(records[7:9])
+    ]
+    frozen = [{**records[9], "source": {"db_id": "frozen_only"}}]
+    output = tmp_path / "v16"
+
+    report = build_v16_mixture(
+        output,
+        write("semantic_train.jsonl", semantic_train),
+        write("semantic_validation.jsonl", semantic_validation),
+        write("human_train.jsonl", human_train),
+        write("human_validation.jsonl", human_validation),
+        write("synthetic_train.jsonl", records[:4]),
+        write("synthetic_validation.jsonl", records[4:8]),
+        write("frozen.jsonl", frozen),
+        human_train_records=6,
+        synthetic_train_records=3,
+        human_validation_records=4,
+        synthetic_validation_records=3,
+        seed=16,
+    )
+
+    assert report["train"]["source_counts"] == {
+        "human_replay": 6,
+        "paired_semantic": 2,
+        "synthetic_replay": 3,
+    }
+    assert report["validation"]["source_counts"] == {
+        "human_validation": 4,
+        "semantic_paraphrase_validation": 2,
+        "synthetic_validation": 3,
+    }
+    assert report["isolation"] == {
+        "human_train_validation_schema_overlap": 0,
+        "human_train_frozen_schema_overlap": 0,
+        "human_validation_frozen_schema_overlap": 0,
+        "anti_memorization_data_loaded": False,
+    }
 
 
 def test_population_respects_foreign_keys():

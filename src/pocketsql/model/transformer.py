@@ -74,7 +74,7 @@ class PocketSQLTransformer(nn.Module):
         self.blocks = [Block(config) for _ in range(config.layers)]
         self.norm = nn.LayerNorm(config.hidden_dim)
 
-    def __call__(self, tokens: mx.array) -> mx.array:
+    def hidden_states(self, tokens: mx.array) -> mx.array:
         _, length = tokens.shape
         if length > self.config.context_length:
             raise ValueError("sequence exceeds context length")
@@ -82,7 +82,10 @@ class PocketSQLTransformer(nn.Module):
         values = self.embedding(tokens) + self.position(positions)
         for block in self.blocks:
             values = block(values)
-        return self.norm(values) @ self.embedding.weight.T
+        return self.norm(values)
+
+    def __call__(self, tokens: mx.array) -> mx.array:
+        return self.hidden_states(tokens) @ self.embedding.weight.T
 
     def forward_with_cache(self, tokens: mx.array, cache: list[tuple[mx.array, mx.array]] | None = None) -> tuple[mx.array, list[tuple[mx.array, mx.array]]]:
         """Run a prompt or incremental token batch while retaining causal attention state."""

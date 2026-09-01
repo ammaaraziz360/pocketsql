@@ -12,8 +12,21 @@ import mlx.core as mx
 from pocketsql.data.validate import is_read_only_select
 from pocketsql.data.render_sql import render_sql
 from pocketsql.model.schema_grounding import LOCATION_IDENTIFIER_WORDS, IdentifierMapping, canonicalize_inputs
+from pocketsql.model.factorized import (
+    FactorizedPocketSQLTransformer,
+    FactorizedSchemaConfig,
+    decode_schema_link_logits,
+)
 from pocketsql.model.semantic_grammar import SemanticPlanGrammar
 from pocketsql.model.semantic_plan import SemanticPlanError, VALUE_SLOT_RE, parse_semantic_plan, serialize_semantic_plan
+from pocketsql.model.structured import (
+    StructuredPocketSQLTransformer,
+    StructuredQueryConfig,
+    decode_literal_logits,
+    decode_operation_logits,
+    prompt_layout,
+    structured_query_plan,
+)
 from pocketsql.model.tokenizer import TokenizerProtocol, load_tokenizer
 from pocketsql.model.transformer import ModelConfig, PocketSQLTransformer
 from pocketsql.training.checkpoint import load_checkpoint
@@ -77,6 +90,8 @@ def _grounded_inputs(model, schema: str, question: str) -> tuple[str, str, Ident
         getattr(model, "identifier_slot_strategy", "ordered"),
         getattr(model, "canonicalize_literals", False),
         getattr(model, "schema_linking_hints", False),
+        getattr(model, "schema_linking_max_tables", 5),
+        getattr(model, "schema_linking_max_columns", 8),
     )
 
 
@@ -181,6 +196,8 @@ def _finish_target(
     mapping: IdentifierMapping | None,
     schema_sql: str,
     grounded_question: str,
+    factorized_links: dict | None = None,
+    factorized_confidence_threshold: float | None = None,
 ) -> str:
     """Turn either a legacy SQL target or a semantic target into checked SQL."""
     if getattr(model, "target_format", "sql") == "sql":
@@ -189,6 +206,13 @@ def _finish_target(
         return ""
     try:
         plan = parse_semantic_plan(target)
+        if mapping is not None and factorized_links is not None:
+            plan = _apply_factorized_schema_links(
+                plan,
+                factorized_links,
+                mapping,
+                factorized_confidence_threshold,
+            )
         if mapping is not None:
             plan = _ground_semantic_plan(plan, mapping, grounded_question)
         if mapping is not None and plan.filters:
@@ -198,12 +222,14 @@ def _finish_target(
                 if isinstance(value, str) and VALUE_SLOT_RE.fullmatch(value):
                     return value in grounded_literals
                 raw = str(value)
-                return bool(
+                canonical_raw = mapping.canonicalize_question(raw)
+                return any(
                     re.search(
-                        rf"(?<![A-Za-z0-9_]){re.escape(raw)}(?![A-Za-z0-9_])",
+                        rf"(?<![A-Za-z0-9_]){re.escape(candidate)}(?![A-Za-z0-9_])",
                         grounded_question,
                         re.IGNORECASE,
                     )
+                    for candidate in {raw, canonical_raw}
                 )
 
             # A filter value absent from the request is necessarily a
@@ -215,6 +241,271 @@ def _finish_target(
     except SemanticPlanError:
         return ""
     return _finish_sql(sql, None, schema_sql)
+
+
+def _apply_factorized_schema_links(
+    plan,
+    links: dict,
+    mapping: IdentifierMapping,
+    confidence_threshold: float | None = None,
+):
+    """Substitute schema roles, optionally keeping every low-confidence role."""
+    confidence = links.get("confidence", {})
+
+    def confident(role: str, index: int | None = None) -> bool:
+        if confidence_threshold is None:
+            return True
+        value = confidence.get(role, 0.0)
+        if index is not None:
+            value = value[index] if index < len(value) else 0.0
+        return float(value) >= confidence_threshold
+
+    predicted_table = f"table{links['table']}"
+    predicted_join = f"table{links['join_table']}" if links["join_table"] is not None else None
+    replace_scope = confident("table_join")
+    table = predicted_table if replace_scope else plan.table
+    join_table = predicted_join if replace_scope else plan.join_table
+    joined = join_table is not None
+    star_column = links["star_column"]
+    predicted_scope = {predicted_table, predicted_join} - {None}
+    selected_scope = {table, join_table} - {None}
+    role_scope_matches = predicted_scope == selected_scope
+
+    def reference(owner: int, column: int, allow_star: bool = False) -> str:
+        owner_slot = f"table{owner}"
+        if allow_star and column == star_column:
+            return f"{owner_slot}.*" if joined else "*"
+        column_slot = f"column{column}"
+        return f"{owner_slot}.{column_slot}" if joined else column_slot
+
+    columns = tuple(
+        reference(links["projection_owner"][index], links["projection_column"][index], True)
+        if role_scope_matches
+        and index < len(links["projection_column"])
+        and confident("projection", index)
+        else item
+        for index, item in enumerate(plan.columns)
+    )
+    aggregate_column = plan.aggregate_column
+    if aggregate_column and role_scope_matches and confident("aggregate"):
+        aggregate_column = reference(links["aggregate_owner"], links["aggregate_column"])
+    filters = tuple(
+        replace(
+            item,
+            column=reference(links["filter_owner"][index], links["filter_column"][index]),
+        )
+        if role_scope_matches
+        and index < len(links["filter_column"])
+        and confident("filter", index)
+        else item
+        for index, item in enumerate(plan.filters)
+    )
+    group_by = tuple(
+        reference(links["group_owner"][index], links["group_column"][index])
+        if role_scope_matches
+        and index < len(links["group_column"])
+        and confident("group", index)
+        else item
+        for index, item in enumerate(plan.group_by)
+    )
+    order_by = plan.order_by
+    if order_by and role_scope_matches and confident("order"):
+        order_by = reference(links["order_owner"], links["order_column"])
+
+    join_on = plan.join_on if joined else None
+    if join_table:
+        declared = mapping.declared_joins(table, join_table)
+        if len(declared) == 1:
+            join_on = declared[0]
+        elif replace_scope and confident("join_column"):
+            join_on = (
+                reference(links["table"], links["join_column"][0]),
+                reference(links["join_table"], links["join_column"][1]),
+            )
+    return replace(
+        plan,
+        table=table,
+        join_table=join_table,
+        join_on=join_on,
+        columns=columns,
+        aggregate_column=aggregate_column,
+        filters=filters,
+        group_by=group_by,
+        order_by=order_by,
+    )
+
+
+def _factorized_link_predictions(model, prompts, grounded, tokenizer: TokenizerProtocol | None = None):
+    if not isinstance(model, FactorizedPocketSQLTransformer) or not getattr(
+        model, "use_factorized_schema_links", True
+    ):
+        return [None] * len(prompts)
+    predictions = [None] * len(prompts)
+    if getattr(model, "factorized_schema_linking_hints", False):
+        if tokenizer is None:
+            raise ValueError("factorized schema label prompts require a tokenizer")
+        labeled_prompts = []
+        for original_prompt, (schema, question, mapping) in zip(prompts, grounded):
+            labeled_prompt = tokenizer.encode(
+                f"<bos><schema>{schema}\n"
+                f"{mapping.schema_linking_legend('', question, getattr(model, 'schema_linking_max_tables', 5), getattr(model, 'schema_linking_max_columns', 8))}"
+                f"</schema><question>{question}</question><sql>"
+            )
+            # Readable labels are an auxiliary schema-linking channel.  Large
+            # real-world schemas can make that channel longer than the model's
+            # position table even when the canonical generation prompt fits.
+            # Falling back to the canonical prompt keeps inference safe and
+            # preserves the pre-v15 behaviour for those records.
+            if len(labeled_prompt) > model.config.context_length:
+                labeled_prompt = original_prompt
+            labeled_prompts.append(labeled_prompt)
+        prompts = labeled_prompts
+    groups: dict[int, list[int]] = {}
+    for index, prompt in enumerate(prompts):
+        groups.setdefault(len(prompt), []).append(index)
+    for indices in groups.values():
+        mappings = [grounded[index][2] for index in indices]
+        if any(mapping is None for mapping in mappings):
+            raise ValueError("factorized schema linking requires canonicalized identifiers")
+        prompt_batch = mx.array([prompts[index] for index in indices])
+        if isinstance(model, StructuredPocketSQLTransformer):
+            prompt_texts = [tokenizer.decode(prompts[index]) for index in indices]
+            layouts = [
+                prompt_layout(
+                    prompt_text,
+                    tokenizer,
+                    grounded[index][2],
+                    model.schema_config,
+                    model.structured_config,
+                )
+                for index, prompt_text in zip(indices, prompt_texts)
+            ]
+            layout_keys = (
+                "table_positions",
+                "table_mask",
+                "column_positions",
+                "column_mask",
+                "question_mask",
+            )
+            layout_batch = {
+                name: mx.array([layout[name] for layout in layouts]) for name in layout_keys
+            }
+            layout_batch["prompt_positions"] = mx.array(
+                [layout["prompt_position"] for layout in layouts]
+            )
+            logits, operation_logits, literal_logits = model.structured_logits(
+                prompt_batch, layout_batch
+            )
+            mx.eval(
+                *logits.values(),
+                *operation_logits.values(),
+                *literal_logits.values(),
+            )
+            operations = decode_operation_logits(operation_logits)
+            literals = decode_literal_logits(
+                literal_logits,
+                prompt_texts,
+                layouts,
+                model.structured_config.max_literal_span_tokens,
+            )
+        else:
+            logits = model.schema_link_logits(prompt_batch)
+            mx.eval(*logits.values())
+            operations = [None] * len(indices)
+            literals = [None] * len(indices)
+        decoded = decode_schema_link_logits(logits, mappings, model.schema_config)
+        for index, links, operation, literal_slots, mapping in zip(
+            indices, decoded, operations, literals, mappings
+        ):
+            if operation is not None and literal_slots is not None:
+                links["structured_plan"] = structured_query_plan(
+                    operation,
+                    links,
+                    literal_slots,
+                    mapping,
+                    model.structured_config,
+                )
+                links["structured_operation"] = operation
+                links["structured_literal_values"] = literal_slots
+            predictions[index] = links
+    return predictions
+
+
+def _finish_generated_target(
+    target: str,
+    model,
+    mapping: IdentifierMapping | None,
+    schema_sql: str,
+    grounded_question: str,
+    factorized_links: dict | None,
+) -> str:
+    if factorized_links is None:
+        return _finish_target(target, model, mapping, schema_sql, grounded_question)
+    structured_plan = factorized_links.get("structured_plan")
+    if isinstance(model, StructuredPocketSQLTransformer):
+        mode = getattr(model, "structured_plan_mode", "fallback")
+        structured_sql = ""
+        if structured_plan is not None:
+            try:
+                structured_target = serialize_semantic_plan(structured_plan)
+            except SemanticPlanError:
+                structured_target = ""
+            if structured_target:
+                structured_sql = _finish_target(
+                    structured_target,
+                    model,
+                    mapping,
+                    schema_sql,
+                    grounded_question,
+                )
+        if mode == "replace":
+            return structured_sql
+        baseline = _finish_target(target, model, mapping, schema_sql, grounded_question)
+        if mode == "prefer":
+            return structured_sql or baseline
+        if mode == "fallback":
+            return baseline or structured_sql
+        if mode != "disabled":
+            raise ValueError(f"unsupported structured_plan_mode: {mode!r}")
+    mode = getattr(model, "factorized_schema_mode", "fallback")
+    if mode == "fallback":
+        baseline = _finish_target(target, model, mapping, schema_sql, grounded_question)
+        return baseline or _finish_target(
+            target,
+            model,
+            mapping,
+            schema_sql,
+            grounded_question,
+            factorized_links,
+        )
+    if mode == "replace":
+        return _finish_target(
+            target,
+            model,
+            mapping,
+            schema_sql,
+            grounded_question,
+            factorized_links,
+        )
+    if mode == "confidence":
+        threshold = getattr(model, "factorized_schema_confidence_threshold", 0.9)
+        if not 0.0 <= threshold <= 1.0:
+            raise ValueError("factorized_schema_confidence_threshold must be between zero and one")
+        baseline = _finish_target(target, model, mapping, schema_sql, grounded_question)
+        if baseline:
+            return baseline
+        return _finish_target(
+            target,
+            model,
+            mapping,
+            schema_sql,
+            grounded_question,
+            factorized_links,
+            threshold,
+        )
+    if mode == "disabled":
+        return _finish_target(target, model, mapping, schema_sql, grounded_question)
+    raise ValueError(f"unsupported factorized_schema_mode: {mode!r}")
 
 
 def _ground_semantic_plan(plan, mapping: IdentifierMapping, question: str):
@@ -255,34 +546,168 @@ def _ground_semantic_plan(plan, mapping: IdentifierMapping, question: str):
     if not plan.join_table and len(mentioned_tables) == 1:
         plan = replace(plan, table=mentioned_tables[0])
 
-    if plan.join_table:
-        joined_tables = {plan.table, plan.join_table}
+    if plan.aggregate or plan.group_by:
+        # Aggregate/group joins remain model-directed for now. Their table
+        # semantics are more subtle than plain relationship projections, and
+        # the deterministic planner must not trade away proven v12 behavior.
+        if plan.join_table:
+            joined_tables = {plan.table, plan.join_table}
+            plan = replace(
+                plan,
+                filters=tuple(
+                    replace(item, column=_qualify_join_reference(item.column, joined_tables, mapping))
+                    for item in plan.filters
+                ),
+            )
+        return replace(plan, columns=columns)
+
+    referenced_tables = _plan_reference_tables(plan, columns, mapping)
+    inferred_pair: tuple[str, str] | None = None
+    inferred_join: tuple[str, str] | None = None
+    decoded_pair = (plan.table, plan.join_table) if plan.join_table else ()
+    decoded_joins = mapping.declared_joins(*decoded_pair) if len(decoded_pair) == 2 else ()
+    if len(decoded_joins) == 1:
+        inferred_pair = decoded_pair
+        inferred_join = decoded_joins[0]
+    elif plan.join_table:
+        candidates = (
+            mentioned_tables if len(mentioned_tables) == 2 else (),
+            referenced_tables if len(referenced_tables) == 2 else (),
+        )
+    else:
+        # Projection grounding above has already removed unrequested model
+        # columns, so two remaining unique owner tables are direct evidence
+        # that the requested projection requires a join.
+        candidates = (
+            mentioned_tables if len(mentioned_tables) == 2 else (),
+            referenced_tables if len(referenced_tables) == 2 else (),
+        )
+    for candidate in candidates if inferred_pair is None else ():
+        if len(candidate) != 2 or candidate[0] == candidate[1]:
+            continue
+        joins = mapping.declared_joins(candidate[0], candidate[1])
+        if len(joins) == 1:
+            inferred_pair = (candidate[0], candidate[1])
+            inferred_join = joins[0]
+            break
+
+    if inferred_pair and inferred_join:
+        base_table = plan.table if plan.table in inferred_pair else inferred_pair[0]
         # In an adjacent table noun phrase ("customer orders"), the second
         # noun is the requested entity and the first supplies relationship
         # context. Do not apply this to prepositional forms such as
         # "orders for customers".
         compound = re.search(r"\b(table\d+)\s+(table\d+)\b", question, re.IGNORECASE)
-        if compound and set(compound.groups()) == joined_tables:
-            context_table, selected_table = compound.groups()
-            if len(columns) == 1 and columns[0] in {f"{plan.table}.*", f"{plan.join_table}.*"}:
-                columns = (f"{selected_table}.*",)
-            plan = replace(plan, table=selected_table, join_table=context_table)
+        if compound and set(compound.groups()) == set(inferred_pair):
+            _, base_table = compound.groups()
+        else:
+            wildcard_tables = tuple(
+                reference.split(".", 1)[0]
+                for reference in columns
+                if reference.endswith(".*") and reference.split(".", 1)[0] in inferred_pair
+            )
+            if len(wildcard_tables) == 1:
+                base_table = wildcard_tables[0]
+        join_table = inferred_pair[1] if base_table == inferred_pair[0] else inferred_pair[0]
+        if compound and len(columns) == 1 and columns[0].endswith(".*"):
+            columns = (f"{base_table}.*",)
+        plan = replace(
+            plan,
+            table=base_table,
+            join_table=join_table,
+            join_on=inferred_join,
+        )
 
-        # A column that exists on exactly one joined table cannot legally be
-        # qualified by the other table. Correct only this unambiguous case.
-        grounded_filters = []
-        for item in plan.filters:
-            _, separator, column_slot = item.column.rpartition(".")
-            if not separator:
-                column_slot = item.column
-            raw_column = mapping.slot_to_raw.get(column_slot)
-            owners = mapping.column_to_tables.get(raw_column, ()) if raw_column else ()
-            owner_slots = [mapping.table_to_slot[owner] for owner in owners if mapping.table_to_slot[owner] in joined_tables]
-            column = f"{owner_slots[0]}.{column_slot}" if len(owner_slots) == 1 else item.column
-            grounded_filters.append(replace(item, column=column))
-        plan = replace(plan, filters=tuple(grounded_filters))
+    if plan.join_table:
+        joined_tables = {plan.table, plan.join_table}
+        declared = mapping.declared_joins(plan.table, plan.join_table)
+        if not declared:
+            raise SemanticPlanError("decoded join tables are not connected by a declared foreign key")
+        decoded_join = tuple(plan.join_on or ())
+        if len(declared) > 1 and not any(decoded_join in {join, join[::-1]} for join in declared):
+            raise SemanticPlanError("decoded join is ambiguous across multiple declared foreign keys")
+        if len(declared) == 1:
+            plan = replace(plan, join_on=declared[0])
+
+        # A column owned by exactly one joined table is safe to qualify or to
+        # repair when the decoder attached the other table.
+        columns = tuple(_qualify_join_reference(item, joined_tables, mapping) for item in columns)
+        aggregate_column = (
+            _qualify_join_reference(plan.aggregate_column, joined_tables, mapping)
+            if plan.aggregate_column
+            else None
+        )
+        filters = tuple(
+            replace(item, column=_qualify_join_reference(item.column, joined_tables, mapping))
+            for item in plan.filters
+        )
+        group_by = tuple(_qualify_join_reference(item, joined_tables, mapping) for item in plan.group_by)
+        order_by = (
+            _qualify_join_reference(plan.order_by, joined_tables, mapping)
+            if plan.order_by
+            else None
+        )
+        plan = replace(
+            plan,
+            aggregate_column=aggregate_column,
+            filters=filters,
+            group_by=group_by,
+            order_by=order_by,
+        )
 
     return replace(plan, columns=columns)
+
+
+def _reference_owner_tables(reference: str, mapping: IdentifierMapping) -> tuple[str, ...]:
+    qualifier, separator, column_slot = reference.rpartition(".")
+    if separator and column_slot == "*":
+        return (qualifier,) if qualifier in mapping.table_to_slot.values() else ()
+    if not separator:
+        column_slot = reference
+    raw_column = mapping.slot_to_raw.get(column_slot)
+    if not raw_column:
+        return ()
+    owners = tuple(
+        mapping.table_to_slot[owner]
+        for owner in mapping.column_to_tables.get(raw_column, ())
+        if owner in mapping.table_to_slot
+    )
+    if len(owners) == 1:
+        return owners
+    if separator and qualifier in owners:
+        return (qualifier,)
+    return ()
+
+
+def _plan_reference_tables(plan, columns: tuple[str, ...], mapping: IdentifierMapping) -> tuple[str, ...]:
+    references = [*columns, *plan.group_by]
+    if plan.aggregate_column:
+        references.append(plan.aggregate_column)
+    if plan.order_by:
+        references.append(plan.order_by)
+    references.extend(item.column for item in plan.filters)
+    tables = []
+    for reference in references:
+        for table in _reference_owner_tables(reference, mapping):
+            if table not in tables:
+                tables.append(table)
+    return tuple(tables)
+
+
+def _qualify_join_reference(reference: str, joined_tables: set[str], mapping: IdentifierMapping) -> str:
+    qualifier, separator, column_slot = reference.rpartition(".")
+    if separator and column_slot == "*":
+        return reference
+    if not separator:
+        column_slot = reference
+    raw_column = mapping.slot_to_raw.get(column_slot)
+    owners = mapping.column_to_tables.get(raw_column, ()) if raw_column else ()
+    owner_slots = [
+        mapping.table_to_slot[owner]
+        for owner in owners
+        if mapping.table_to_slot.get(owner) in joined_tables
+    ]
+    return f"{owner_slots[0]}.{column_slot}" if len(owner_slots) == 1 else reference
 
 
 def _explicit_filter_column_hints(question: str) -> dict[str, str]:
@@ -333,6 +758,18 @@ def generate_sql(model, schema: str, question: str, tokenizer: TokenizerProtocol
     schema, question, mapping = _grounded_inputs(model, schema, question)
     prompt = f"<bos><schema>{schema}</schema><question>{question}</question><sql>"
     tokens = tokenizer.encode(prompt)
+    factorized_links = _factorized_link_predictions(
+        model, [tokens], [(schema, question, mapping)], tokenizer
+    )[0]
+    if isinstance(model, StructuredPocketSQLTransformer) and getattr(
+        model, "structured_plan_mode", "fallback"
+    ) == "replace":
+        finished = _finish_generated_target(
+            "", model, mapping, source_schema, question, factorized_links
+        )
+        if not finished:
+            raise ValueError("structured heads did not produce a valid semantic_plan target")
+        return finished
     if len(tokens) >= model.config.context_length:
         raise ValueError(f"prompt uses {len(tokens)} tokens but model context length is {model.config.context_length}")
     budget = min(_generation_limit(model, max_tokens), model.config.context_length - len(tokens))
@@ -349,7 +786,14 @@ def generate_sql(model, schema: str, question: str, tokenizer: TokenizerProtocol
             break
     text = tokenizer.decode(tokens)
     target = text.split("<sql>", 1)[-1].split("</sql>", 1)[0].replace("<eos>", "").strip()
-    finished = _finish_target(target, model, mapping, source_schema, question)
+    finished = _finish_generated_target(
+        target,
+        model,
+        mapping,
+        source_schema,
+        question,
+        factorized_links,
+    )
     if not finished:
         target_name = getattr(model, "target_format", "sql")
         raise ValueError(f"model output is not a valid {target_name} target: {target!r}")
@@ -369,10 +813,46 @@ def generate_sql_batch(
     right-padding cannot influence the generated result. Invalid generations are
     returned as empty strings, matching evaluation's existing failure behavior.
     """
+    outputs, _ = generate_sql_batch_with_targets(
+        model,
+        schemas,
+        questions,
+        tokenizer=tokenizer,
+        max_tokens=max_tokens,
+    )
+    return outputs
+
+
+def generate_sql_batch_with_targets(
+    model,
+    schemas: list[str],
+    questions: list[str],
+    tokenizer: TokenizerProtocol | None = None,
+    max_tokens: int | None = None,
+) -> tuple[list[str], list[str]]:
+    """Generate checked SQL and retain each raw decoded target for diagnostics."""
+    outputs, targets, _ = generate_sql_batch_with_targets_and_links(
+        model,
+        schemas,
+        questions,
+        tokenizer=tokenizer,
+        max_tokens=max_tokens,
+    )
+    return outputs, targets
+
+
+def generate_sql_batch_with_targets_and_links(
+    model,
+    schemas: list[str],
+    questions: list[str],
+    tokenizer: TokenizerProtocol | None = None,
+    max_tokens: int | None = None,
+) -> tuple[list[str], list[str], list[dict | None]]:
+    """Retain checked SQL, raw targets, and factorized schema-role predictions."""
     if len(schemas) != len(questions):
         raise ValueError("schemas and questions must have the same length")
     if not schemas:
-        return []
+        return [], [], []
     tokenizer = tokenizer or load_tokenizer()
     max_tokens = _generation_limit(model, max_tokens)
     grounded = [_grounded_inputs(model, schema, question) for schema, question in zip(schemas, questions)]
@@ -382,6 +862,24 @@ def generate_sql_batch(
         tokenizer.encode(f"<bos><schema>{schema}</schema><question>{question}</question><sql>")
         for schema, question, _ in grounded
     ]
+    factorized_predictions = _factorized_link_predictions(model, prompts, grounded, tokenizer)
+    if isinstance(model, StructuredPocketSQLTransformer) and getattr(
+        model, "structured_plan_mode", "fallback"
+    ) == "replace":
+        outputs = [
+            _finish_generated_target(
+                "",
+                model,
+                mapping,
+                source_schema,
+                grounded_question,
+                factorized_links,
+            )
+            for source_schema, (_, grounded_question, mapping), factorized_links in zip(
+                schemas, grounded, factorized_predictions
+            )
+        ]
+        return outputs, [""] * len(outputs), factorized_predictions
     sequences = [list(prompt) for prompt in prompts]
     groups: dict[int, list[int]] = {}
     for index, prompt in enumerate(prompts):
@@ -401,11 +899,27 @@ def generate_sql_batch(
             )
 
     outputs = []
-    for tokens, source_schema, (_, grounded_question, mapping) in zip(sequences, schemas, grounded):
+    targets = []
+    for tokens, source_schema, (_, grounded_question, mapping), factorized_links in zip(
+        sequences,
+        schemas,
+        grounded,
+        factorized_predictions,
+    ):
         text = tokenizer.decode(tokens)
         target = text.split("<sql>", 1)[-1].split("</sql>", 1)[0].replace("<eos>", "").strip()
-        outputs.append(_finish_target(target, model, mapping, source_schema, grounded_question))
-    return outputs
+        targets.append(target)
+        outputs.append(
+            _finish_generated_target(
+                target,
+                model,
+                mapping,
+                source_schema,
+                grounded_question,
+                factorized_links,
+            )
+        )
+    return outputs, targets, factorized_predictions
 
 
 def _generate_with_cache(
@@ -469,7 +983,43 @@ def load_model_from_checkpoint(checkpoint: str, tokenizer: TokenizerProtocol | N
     tokenizer = tokenizer or load_tokenizer(Path(checkpoint))
     metadata_path = Path(checkpoint)
     config = json.loads((metadata_path / "metadata.json").read_text(encoding="utf-8"))["config"]
-    model = PocketSQLTransformer(ModelConfig(vocab_size=tokenizer.vocab_size, layers=config["layers"], hidden_dim=config["hidden_dim"], heads=config["heads"], ffn_dim=config["ffn_dim"], context_length=config["context_length"]))
+    model_config = ModelConfig(vocab_size=tokenizer.vocab_size, layers=config["layers"], hidden_dim=config["hidden_dim"], heads=config["heads"], ffn_dim=config["ffn_dim"], context_length=config["context_length"])
+    architecture = config.get("model_architecture", "autoregressive")
+    if architecture == "factorized_schema":
+        model = FactorizedPocketSQLTransformer(
+            model_config,
+            FactorizedSchemaConfig(
+                max_table_slots=config.get("max_table_slots", 16),
+                max_column_slots=config.get("max_column_slots", 64),
+                max_projection_slots=config.get("max_projection_slots", 4),
+                max_filter_slots=config.get("max_filter_slots", 4),
+                max_group_slots=config.get("max_group_slots", 2),
+            ),
+        )
+    elif architecture == "structured_v18":
+        model = StructuredPocketSQLTransformer(
+            model_config,
+            FactorizedSchemaConfig(
+                max_table_slots=config.get("max_table_slots", 16),
+                max_column_slots=config.get("max_column_slots", 64),
+                max_projection_slots=config.get("max_projection_slots", 4),
+                max_filter_slots=config.get("max_filter_slots", 4),
+                max_group_slots=config.get("max_group_slots", 2),
+            ),
+            StructuredQueryConfig(
+                max_literal_span_tokens=config.get("max_literal_span_tokens", 12),
+                max_limit_value=config.get("max_limit_value", 100),
+            ),
+        )
+    elif architecture == "autoregressive":
+        model = PocketSQLTransformer(model_config)
+    else:
+        raise ValueError(f"unsupported model_architecture in checkpoint: {architecture!r}")
+    model.model_architecture = architecture
+    model.factorized_schema_mode = config.get("factorized_schema_mode", "fallback")
+    model.factorized_schema_confidence_threshold = config.get(
+        "factorized_schema_confidence_threshold", 0.9
+    )
     model.generation_max_tokens = config.get("generation_max_tokens", 128)
     model.canonicalize_identifiers = config.get("canonicalize_identifiers", False)
     model.identifier_slot_strategy = config.get("identifier_slot_strategy", "ordered")
@@ -477,6 +1027,10 @@ def load_model_from_checkpoint(checkpoint: str, tokenizer: TokenizerProtocol | N
     model.target_format = config.get("target_format", "sql")
     model.constrain_semantic_plan = config.get("constrain_semantic_plan", model.target_format == "semantic_plan")
     model.schema_linking_hints = config.get("schema_linking_hints", False)
+    model.factorized_schema_linking_hints = config.get("factorized_schema_linking_hints", False)
+    model.schema_linking_max_tables = config.get("schema_linking_max_tables", 5)
+    model.schema_linking_max_columns = config.get("schema_linking_max_columns", 8)
+    model.structured_plan_mode = config.get("structured_plan_mode", "fallback")
     load_checkpoint(metadata_path, model)
     return model
 
@@ -488,6 +1042,24 @@ def main() -> None:
     parser.add_argument("--question", required=True)
     parser.add_argument("--max-tokens", type=int, default=None, help="Override the generation cap stored in the checkpoint.")
     parser.add_argument(
+        "--factorized-schema-mode",
+        choices=("fallback", "replace", "confidence", "disabled"),
+        default=None,
+        help="Override how factorized schema pointers are applied for this run.",
+    )
+    parser.add_argument(
+        "--factorized-schema-confidence-threshold",
+        type=float,
+        default=None,
+        help="Minimum constrained pointer confidence in confidence mode.",
+    )
+    parser.add_argument(
+        "--structured-plan-mode",
+        choices=("replace", "prefer", "fallback", "disabled"),
+        default=None,
+        help="Override how v18 structured plans are combined with autoregressive plans.",
+    )
+    parser.add_argument(
         "--unconstrained-semantic-plan",
         action="store_true",
         help="Disable semantic-plan grammar constraints for legacy score reproduction.",
@@ -495,6 +1067,14 @@ def main() -> None:
     args = parser.parse_args()
     tokenizer = load_tokenizer(Path(args.checkpoint))
     model = load_model_from_checkpoint(args.checkpoint, tokenizer)
+    if args.factorized_schema_mode is not None:
+        model.factorized_schema_mode = args.factorized_schema_mode
+    if args.factorized_schema_confidence_threshold is not None:
+        if not 0.0 <= args.factorized_schema_confidence_threshold <= 1.0:
+            raise SystemExit("--factorized-schema-confidence-threshold must be between zero and one")
+        model.factorized_schema_confidence_threshold = args.factorized_schema_confidence_threshold
+    if args.structured_plan_mode is not None:
+        model.structured_plan_mode = args.structured_plan_mode
     if args.unconstrained_semantic_plan:
         model.constrain_semantic_plan = False
     print(generate_sql(model, args.schema, args.question, tokenizer, args.max_tokens))

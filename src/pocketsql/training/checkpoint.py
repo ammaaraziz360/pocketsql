@@ -25,13 +25,16 @@ def load_checkpoint(path: Path, model, optimizer=None) -> dict:
     return json.loads((path / "metadata.json").read_text(encoding="utf-8"))
 
 
-def initialize_model(path: Path, model) -> dict:
-    """Load compatible weights while allowing only position-table resizing."""
+def initialize_model(path: Path, model, allow_new_schema_heads: bool = False) -> dict:
+    """Load compatible weights, optionally retaining newly added structured heads."""
     loaded = dict(mx.load(str(path / "weights.safetensors")))
     expected = dict(tree_flatten(model.parameters()))
-    if loaded.keys() != expected.keys():
-        missing = sorted(expected.keys() - loaded.keys())
-        extra = sorted(loaded.keys() - expected.keys())
+    missing = sorted(expected.keys() - loaded.keys())
+    extra = sorted(loaded.keys() - expected.keys())
+    allowed_missing = allow_new_schema_heads and all(
+        name.startswith(("schema_", "operation_", "literal_")) for name in missing
+    )
+    if extra or (missing and not allowed_missing):
         raise ValueError(f"Initialization parameter names differ; missing={missing}, extra={extra}")
     for name in loaded:
         if loaded[name].shape == expected[name].shape:
@@ -49,5 +52,5 @@ def initialize_model(path: Path, model) -> dict:
             loaded[name] = mx.concatenate((loaded[name][:shared], expected[name][shared:]), axis=0)
         else:
             loaded[name] = loaded[name][:shared]
-    model.load_weights(list(loaded.items()), strict=True)
+    model.load_weights(list(loaded.items()), strict=not missing)
     return json.loads((path / "metadata.json").read_text(encoding="utf-8"))

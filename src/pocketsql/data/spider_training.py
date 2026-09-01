@@ -23,6 +23,9 @@ from pocketsql.data.spider import (
     download_archive,
     read_source_split,
     schema_sql_from_metadata,
+    _normalize_text,
+    _schema_key,
+    _sql_key,
 )
 
 
@@ -34,6 +37,52 @@ def _write_jsonl(path: Path, records: Iterable[dict]) -> None:
     with path.open("w", encoding="utf-8") as handle:
         for record in records:
             handle.write(json.dumps(record, sort_keys=True) + "\n")
+
+
+def _contamination_keys(record: dict) -> dict[str, tuple[str, str]]:
+    schema = _schema_key(record)
+    question = _normalize_text(record["question"])
+    sql = _sql_key(record)
+    return {
+        "schema_question": (schema, question),
+        "schema_sql": (schema, sql),
+        "question_sql": (question, sql),
+    }
+
+
+def remove_record_pair_contamination(
+    records: list[dict],
+    reference: list[dict],
+    reason_prefix: str,
+) -> tuple[list[dict], list[dict], Counter]:
+    """Remove exact two-field overlaps with a validation or frozen reference."""
+    reference_keys = {name: set() for name in ("schema_question", "schema_sql", "question_sql")}
+    for record in reference:
+        for name, key in _contamination_keys(record).items():
+            reference_keys[name].add(key)
+    retained = []
+    rejections = []
+    counts: Counter = Counter()
+    for record in records:
+        keys = _contamination_keys(record)
+        matches = sorted(name for name, key in keys.items() if key in reference_keys[name])
+        if not matches:
+            retained.append(record)
+            continue
+        reason = f"{reason_prefix}:" + ",".join(matches)
+        counts[reason] += 1
+        source = record.get("source", {})
+        rejections.append(
+            {
+                "id": record.get("id"),
+                "db_id": source.get("db_id"),
+                "question": record.get("question"),
+                "original_sql": source.get("original_sql"),
+                "reason": reason,
+                "split": source.get("split"),
+            }
+        )
+    return retained, rejections, counts
 
 
 def curate_human_split(
@@ -163,6 +212,25 @@ def build_training_corpus(
     human_validation, validation_rejections, validation_counts = curate_human_split(
         dev_rows, dev_tables, dev_databases, "dev", config_paths, forbidden_db_ids
     )
+    human_train, frozen_train_rejections, frozen_train_counts = remove_record_pair_contamination(
+        human_train, forbidden_records, "frozen_benchmark_contamination"
+    )
+    human_validation, frozen_validation_rejections, frozen_validation_counts = (
+        remove_record_pair_contamination(
+            human_validation, forbidden_records, "frozen_benchmark_contamination"
+        )
+    )
+    human_validation, train_validation_rejections, train_validation_counts = (
+        remove_record_pair_contamination(
+            human_validation, human_train, "training_validation_contamination"
+        )
+    )
+    train_rejections.extend(frozen_train_rejections)
+    validation_rejections.extend(frozen_validation_rejections)
+    validation_rejections.extend(train_validation_rejections)
+    train_counts.update(frozen_train_counts)
+    validation_counts.update(frozen_validation_counts)
+    validation_counts.update(train_validation_counts)
     train_schemas = {record["source"]["db_id"] for record in human_train}
     validation_schemas = {record["source"]["db_id"] for record in human_validation}
     if train_schemas & validation_schemas or (train_schemas | validation_schemas) & forbidden_db_ids:

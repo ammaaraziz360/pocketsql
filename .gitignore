@@ -5,6 +5,7 @@ __pycache__/
 build/
 dist/
 .pytest_cache/
+/data/
 data/generated*/
 data/challenge*/
 data/grounding-dev*/
@@ -16,5 +17,8 @@ data/spider*/
 checkpoints/
 runs/
 *.safetensors
+artifacts/evaluations/**
+!artifacts/evaluations/**/
+!artifacts/evaluations/**/SUMMARY.md
 .DS_Store
 .tmp/

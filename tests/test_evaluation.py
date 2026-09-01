@@ -81,6 +81,60 @@ def test_counterfactual_pair_accuracy_requires_both_variants_to_be_correct():
     assert result["counterfactual_pair_accuracy_by_change"] == {"projection": 0.5}
 
 
+def test_anti_memorization_report_compares_paired_prompt_styles():
+    records = [make_record("select", "SELECT name FROM t;") for _ in range(4)]
+    for index, record in enumerate(records):
+        record["anti_memorization_pair"] = f"pair_{index // 2}"
+        record["anti_memorization_track"] = "direct_identifier" if index % 2 == 0 else "semantic_paraphrase"
+        record["composition_novelty"] = "familiar_composition" if index < 2 else "held_out_composition"
+    predictions = [records[0]["sql"], records[1]["sql"], records[2]["sql"], "SELECT id FROM t;"]
+
+    result = evaluate(records, predictions)
+
+    assert result["by_anti_memorization_track"]["direct_identifier"]["execution_accuracy"] == 1.0
+    assert result["by_anti_memorization_track"]["semantic_paraphrase"]["execution_accuracy"] == 0.5
+    assert result["by_composition_novelty"]["held_out_composition"]["execution_accuracy"] == 0.5
+    assert result["by_anti_memorization_slice"][
+        "semantic_paraphrase:held_out_composition"
+    ]["execution_accuracy"] == 0.0
+    assert result["anti_memorization_pairs"] == {
+        "pairs": 2,
+        "direct_execution_accuracy": 1.0,
+        "paraphrase_execution_accuracy": 0.5,
+        "both_correct_accuracy": 0.5,
+        "paraphrase_retention_given_direct_correct": 0.5,
+        "paraphrase_rescue_given_direct_wrong": 0.0,
+        "direct_exact_match": 1.0,
+        "paraphrase_exact_match": 0.5,
+        "both_exact_match_accuracy": 0.5,
+        "direct_semantic_plan_accuracy": 0.0,
+        "paraphrase_semantic_plan_accuracy": 0.0,
+        "both_semantic_plan_accuracy": 0.0,
+    }
+
+
+def test_semantic_linking_report_splits_direct_and_paraphrased_records():
+    records = [make_record("select", "SELECT name FROM t;") for _ in range(2)]
+    records[0]["semantic_linking_track"] = "direct_identifier"
+    records[1]["semantic_linking_track"] = "semantic_paraphrase"
+
+    result = evaluate(records, [records[0]["sql"], "SELECT id FROM t;"])
+
+    assert result["by_semantic_linking_track"]["direct_identifier"]["execution_accuracy"] == 1.0
+    assert result["by_semantic_linking_track"]["semantic_paraphrase"]["execution_accuracy"] == 0.0
+
+
+def test_evaluation_track_reports_checkpoint_selection_slices():
+    records = [make_record("select", "SELECT name FROM t;") for _ in range(2)]
+    records[0]["evaluation_track"] = "human_validation"
+    records[1]["evaluation_track"] = "semantic_validation"
+
+    result = evaluate(records, [records[0]["sql"], "SELECT id FROM t;"])
+
+    assert result["by_evaluation_track"]["human_validation"]["execution_accuracy"] == 1.0
+    assert result["by_evaluation_track"]["semantic_validation"]["execution_accuracy"] == 0.0
+
+
 def test_evaluation_opens_relative_sqlite_database_read_only(tmp_path):
     import sqlite3
 

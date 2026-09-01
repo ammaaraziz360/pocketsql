@@ -8,12 +8,14 @@ import pytest
 
 from pocketsql.data.spider import (
     SpiderRejected,
+    _config_incompatibility,
+    _normalize_double_quoted_filter_literals,
     contamination_matches,
     convert_example,
     schema_sql_from_metadata,
     training_contamination_index,
 )
-from pocketsql.data.spider_training import mix_human_curriculum
+from pocketsql.data.spider_training import mix_human_curriculum, remove_record_pair_contamination
 from pocketsql.data.schema_linking import linking_family, weighted_resample
 
 
@@ -100,6 +102,42 @@ def test_convert_example_rejects_unmentioned_filter_literal(tmp_path):
         convert_example(bad, 1, metadata(), database(tmp_path), "test")
 
 
+def test_convert_example_recovers_spider_double_quoted_string_value(tmp_path):
+    recovered = source(
+        question="Show customer names in Houston",
+        query='SELECT name FROM customers WHERE city = "Houston"',
+    )
+
+    record = convert_example(recovered, 2, metadata(), database(tmp_path), "train", training_use_allowed=True)
+
+    assert record["sql"] == "SELECT name FROM customers WHERE city = 'Houston';"
+    assert record["source"]["parser_sql_normalizations"] == {
+        "double_quoted_filter_literals": 1
+    }
+
+
+def test_double_quoted_schema_identifier_is_not_reinterpreted_as_a_literal():
+    sql = 'SELECT name FROM customers WHERE city = "name"'
+
+    normalized, count = _normalize_double_quoted_filter_literals(sql, metadata())
+
+    assert normalized == sql
+    assert count == 0
+
+
+def test_compatibility_rejects_schema_larger_than_factorized_column_head():
+    record = {
+        "schema_sql": "CREATE TABLE wide (" + ", ".join(f"column_{i} TEXT" for i in range(33)) + ");"
+    }
+    config = {
+        "identifier_slot_strategy": "ordered",
+        "max_table_slots": 16,
+        "max_column_slots": 32,
+    }
+
+    assert _config_incompatibility(record, [(config, None)]) == "schema_slot_capacity_exceeded"
+
+
 def test_contamination_requires_a_record_level_pair_not_only_common_sql(tmp_path):
     training_path = tmp_path / "train.jsonl"
     training_record = {
@@ -132,6 +170,30 @@ def test_human_curriculum_hits_fraction_and_preserves_source_labels():
     assert counts == {"v11": 7, "spider_human": 3}
     assert Counter(record["semantic_source"] for record in mixed) == counts
     assert len(mixed) == 10
+
+
+def test_human_curation_removes_question_sql_overlap_even_on_another_schema():
+    candidate = {
+        "id": "train",
+        "schema_sql": "CREATE TABLE local_people (name TEXT);",
+        "question": "Show the names",
+        "sql": "SELECT name FROM local_people;",
+        "source": {"db_id": "local", "split": "train", "original_sql": "SELECT name FROM local_people"},
+    }
+    frozen = {
+        "id": "frozen",
+        "schema_sql": "CREATE TABLE people (name TEXT);",
+        "question": "Show the names",
+        "sql": "SELECT name FROM local_people;",
+    }
+
+    retained, rejections, counts = remove_record_pair_contamination(
+        [candidate], [frozen], "frozen_benchmark_contamination"
+    )
+
+    assert retained == []
+    assert rejections[0]["reason"] == "frozen_benchmark_contamination:question_sql"
+    assert counts == {"frozen_benchmark_contamination:question_sql": 1}
 
 
 def test_schema_linking_resampling_increases_hard_family_weight_deterministically():

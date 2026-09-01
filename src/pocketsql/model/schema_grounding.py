@@ -63,6 +63,14 @@ class LiteralBinding:
         return str(self.value)
 
 
+@dataclass(frozen=True)
+class ForeignKeyBinding:
+    child_table: str
+    child_column: str
+    parent_table: str
+    parent_column: str
+
+
 def _split_fields(body: str) -> list[str]:
     fields: list[str] = []
     start = 0
@@ -257,6 +265,7 @@ class IdentifierMapping:
     column_to_slot: dict[str, str]
     column_to_tables: dict[str, tuple[str, ...]]
     primary_column_table: dict[str, str]
+    foreign_keys: tuple[ForeignKeyBinding, ...] = ()
     literals: tuple[LiteralBinding, ...] = ()
 
     @property
@@ -268,7 +277,10 @@ class IdentifierMapping:
 
     @property
     def slot_to_raw(self) -> dict[str, str]:
-        return {slot: raw for raw, slot in self.raw_to_slot.items()}
+        return {
+            **{slot: raw for raw, slot in self.table_to_slot.items()},
+            **{slot: raw for raw, slot in self.column_to_slot.items()},
+        }
 
     @property
     def allowed_slots(self) -> set[str]:
@@ -314,8 +326,68 @@ class IdentifierMapping:
         links = ";".join(f"{slot}={label}" for slot, label in (*table_links, *column_links))
         return f"SCHEMA LINKS {links};"
 
+    def declared_joins(self, first_table_slot: str, second_table_slot: str) -> tuple[tuple[str, str], ...]:
+        """Return declared foreign-key joins between two canonical table slots."""
+        joins = []
+        for foreign_key in self.foreign_keys:
+            child_table = self.table_to_slot.get(foreign_key.child_table)
+            parent_table = self.table_to_slot.get(foreign_key.parent_table)
+            if {child_table, parent_table} != {first_table_slot, second_table_slot}:
+                continue
+            child_column = self.column_to_slot.get(foreign_key.child_column)
+            parent_column = self.column_to_slot.get(foreign_key.parent_column)
+            if child_table and parent_table and child_column and parent_column:
+                joins.append(
+                    (
+                        f"{child_table}.{child_column}",
+                        f"{parent_table}.{parent_column}",
+                    )
+                )
+        return tuple(dict.fromkeys(joins))
+
     def canonicalize(self, text: str) -> str:
         return _replace_outside_literals(text, self.raw_to_slot)
+
+    def canonicalize_schema(self, schema_sql: str) -> str:
+        """Canonicalize DDL while keeping table and column namespaces distinct."""
+        table_lookup = {raw.casefold(): slot for raw, slot in self.table_to_slot.items()}
+        column_lookup = {raw.casefold(): slot for raw, slot in self.column_to_slot.items()}
+        if not set(table_lookup) & set(column_lookup):
+            return self.canonicalize(schema_sql)
+
+        def replace_table(raw: str) -> str:
+            return table_lookup.get(raw.casefold(), raw)
+
+        def replace_column(raw: str) -> str:
+            return column_lookup.get(raw.casefold(), raw)
+
+        def canonical_statement(match: re.Match) -> str:
+            table_name, body = match.groups()
+            fields = []
+            for field in _split_fields(body):
+                column_match = re.match(rf"({IDENTIFIER})\b", field)
+                if column_match and column_match.group(1).upper() not in {
+                    "PRIMARY",
+                    "FOREIGN",
+                    "UNIQUE",
+                    "CHECK",
+                    "CONSTRAINT",
+                }:
+                    start, end = column_match.span(1)
+                    field = field[:start] + replace_column(column_match.group(1)) + field[end:]
+                field = re.sub(
+                    rf"\bREFERENCES\s+({IDENTIFIER})\s*\(\s*({IDENTIFIER})\s*\)",
+                    lambda reference: (
+                        f"REFERENCES {replace_table(reference.group(1))}"
+                        f"({replace_column(reference.group(2))})"
+                    ),
+                    field,
+                    flags=re.IGNORECASE,
+                )
+                fields.append(field)
+            return f"CREATE TABLE {replace_table(table_name)} ({', '.join(fields)});"
+
+        return CREATE_TABLE.sub(canonical_statement, schema_sql)
 
     def with_literals(self, values: list[str | int | float], question: str) -> "IdentifierMapping":
         """Attach stable valueN slots ordered by their first question mention."""
@@ -348,7 +420,23 @@ class IdentifierMapping:
         return replace(self, literals=tuple(bindings))
 
     def canonicalize_sql(self, sql: str) -> str:
-        canonical = self.canonicalize(sql)
+        table_lookup = {raw.casefold(): slot for raw, slot in self.table_to_slot.items()}
+        column_lookup = {raw.casefold(): slot for raw, slot in self.column_to_slot.items()}
+        if set(table_lookup) & set(column_lookup):
+            canonical = re.sub(
+                rf"\b(FROM|JOIN)\s+({IDENTIFIER})\b",
+                lambda match: f"{match.group(1)} {table_lookup.get(match.group(2).casefold(), match.group(2))}",
+                sql,
+                flags=re.IGNORECASE,
+            )
+            canonical = re.sub(
+                rf"\b({IDENTIFIER})\s*\.",
+                lambda match: f"{table_lookup.get(match.group(1).casefold(), match.group(1))}.",
+                canonical,
+            )
+            canonical = _replace_outside_literals(canonical, self.column_to_slot)
+        else:
+            canonical = self.canonicalize(sql)
         for binding in sorted(self.literals, key=lambda item: len(item.sql_text), reverse=True):
             if isinstance(binding.value, str):
                 pattern = re.compile(re.escape(binding.sql_text), re.IGNORECASE)
@@ -459,6 +547,7 @@ def identifier_mapping(schema_sql: str, slot_strategy: str = "ordered") -> Ident
     columns: list[str] = []
     column_to_tables: dict[str, list[str]] = {}
     primary_column_table: dict[str, str] = {}
+    foreign_keys: list[ForeignKeyBinding] = []
     for match in CREATE_TABLE.finditer(schema_sql):
         table_name, body = match.groups()
         if table_name not in tables:
@@ -475,6 +564,16 @@ def identifier_mapping(schema_sql: str, slot_strategy: str = "ordered") -> Ident
             column_to_tables.setdefault(column_name, []).append(table_name)
             if "PRIMARY KEY" in field.upper():
                 primary_column_table[column_name] = table_name
+            reference = re.search(
+                rf"\bREFERENCES\s+({IDENTIFIER})\s*\(\s*({IDENTIFIER})\s*\)",
+                field,
+                re.IGNORECASE,
+            )
+            if reference:
+                parent_table, parent_column = reference.groups()
+                foreign_keys.append(
+                    ForeignKeyBinding(table_name, column_name, parent_table, parent_column)
+                )
     if not tables or not columns:
         raise ValueError("Schema canonicalization requires CREATE TABLE statements with unquoted identifiers")
     if slot_strategy == "permuted":
@@ -499,6 +598,7 @@ def identifier_mapping(schema_sql: str, slot_strategy: str = "ordered") -> Ident
         {name: f"column{index}" for index, name in enumerate(columns)},
         {name: tuple(owners) for name, owners in column_to_tables.items()},
         primary_column_table,
+        tuple(foreign_keys),
     )
 
 
@@ -518,16 +618,23 @@ def canonicalize_inputs(
     slot_strategy: str = "ordered",
     canonicalize_literals: bool = False,
     schema_linking_hints: bool = False,
+    schema_linking_max_tables: int = 5,
+    schema_linking_max_columns: int = 8,
 ) -> tuple[str, str, IdentifierMapping]:
     mapping = identifier_mapping(schema_sql, slot_strategy)
     identifier_question = mapping.canonicalize_question(question)
     if canonicalize_literals:
         mapping = _with_question_literals(mapping, identifier_question)
     schema_source = _schema_fingerprint(schema_sql) if slot_strategy == "permuted" else schema_sql
-    canonical_schema = mapping.canonicalize(schema_source)
+    canonical_schema = mapping.canonicalize_schema(schema_source)
     canonical_question = mapping.canonicalize_question(question)
     if schema_linking_hints:
-        canonical_schema += "\n" + mapping.schema_linking_legend(question, canonical_question)
+        canonical_schema += "\n" + mapping.schema_linking_legend(
+            question,
+            canonical_question,
+            schema_linking_max_tables,
+            schema_linking_max_columns,
+        )
     return canonical_schema, canonical_question, mapping
 
 
@@ -536,17 +643,24 @@ def canonicalize_record(
     slot_strategy: str = "ordered",
     canonicalize_literals: bool = False,
     schema_linking_hints: bool = False,
+    schema_linking_max_tables: int = 5,
+    schema_linking_max_columns: int = 8,
 ) -> dict:
     mapping = identifier_mapping(record["schema_sql"], slot_strategy)
     if canonicalize_literals:
         identifier_question = mapping.canonicalize_question(record["question"])
         mapping = _with_question_literals(mapping, identifier_question)
-    canonical_schema = mapping.canonicalize(
+    canonical_schema = mapping.canonicalize_schema(
         _schema_fingerprint(record["schema_sql"]) if slot_strategy == "permuted" else record["schema_sql"]
     )
     canonical_question = mapping.canonicalize_question(record["question"])
     if schema_linking_hints:
-        canonical_schema += "\n" + mapping.schema_linking_legend(record["question"], canonical_question)
+        canonical_schema += "\n" + mapping.schema_linking_legend(
+            record["question"],
+            canonical_question,
+            schema_linking_max_tables,
+            schema_linking_max_columns,
+        )
     canonical = {
         **record,
         "schema_sql": canonical_schema,
@@ -560,14 +674,31 @@ def canonicalize_record(
 
 def _canonicalize_query_plan(plan: dict, mapping: IdentifierMapping) -> dict:
     """Apply the same reversible slots to the structured supervision target."""
+    table_lookup = {raw.casefold(): slot for raw, slot in mapping.table_to_slot.items()}
+    column_lookup = {raw.casefold(): slot for raw, slot in mapping.column_to_slot.items()}
+
+    def table(value: str) -> str:
+        return table_lookup.get(value.casefold(), value)
+
+    def reference(value: str) -> str:
+        qualifier, separator, column = value.rpartition(".")
+        if separator:
+            return f"{table(qualifier)}.{column_lookup.get(column.casefold(), column)}"
+        if value == "*":
+            return value
+        return column_lookup.get(value.casefold(), value)
+
     canonical = dict(plan)
-    for key in ("table", "aggregate_column", "order_by", "join_table"):
+    for key in ("table", "join_table"):
         if canonical.get(key):
-            canonical[key] = mapping.canonicalize(canonical[key])
+            canonical[key] = table(canonical[key])
+    for key in ("aggregate_column", "order_by"):
+        if canonical.get(key):
+            canonical[key] = reference(canonical[key])
     for key in ("columns", "group_by"):
-        canonical[key] = [mapping.canonicalize(item) for item in canonical.get(key, ())]
+        canonical[key] = [reference(item) for item in canonical.get(key, ())]
     if canonical.get("join_on"):
-        canonical["join_on"] = [mapping.canonicalize(item) for item in canonical["join_on"]]
+        canonical["join_on"] = [reference(item) for item in canonical["join_on"]]
 
     def canonical_value(value: str | int | float) -> str | int | float:
         for binding in mapping.literals:
@@ -578,7 +709,7 @@ def _canonicalize_query_plan(plan: dict, mapping: IdentifierMapping) -> dict:
     canonical["filters"] = [
         {
             **item,
-            "column": mapping.canonicalize(item["column"]),
+            "column": reference(item["column"]),
             "value": canonical_value(item["value"]),
         }
         for item in canonical.get("filters", ())

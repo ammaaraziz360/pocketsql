@@ -28,6 +28,8 @@ def format_record(
     canonicalize_literals: bool = False,
     target_format: str = "sql",
     schema_linking_hints: bool = False,
+    schema_linking_max_tables: int = 5,
+    schema_linking_max_columns: int = 8,
 ) -> str:
     if canonicalize_identifiers:
         record = canonicalize_record(
@@ -35,6 +37,8 @@ def format_record(
             identifier_slot_strategy,
             canonicalize_literals,
             schema_linking_hints,
+            schema_linking_max_tables,
+            schema_linking_max_columns,
         )
     target = target_text(record, target_format)
     return f"<bos><schema>{record['schema_sql']}</schema><question>{record['question']}</question><sql>{target}</sql><eos>"
@@ -49,6 +53,8 @@ def encode_record(
     canonicalize_literals: bool = False,
     target_format: str = "sql",
     schema_linking_hints: bool = False,
+    schema_linking_max_tables: int = 5,
+    schema_linking_max_columns: int = 8,
 ) -> tuple[list[int], list[bool]]:
     text = format_record(
         record,
@@ -57,6 +63,8 @@ def encode_record(
         canonicalize_literals,
         target_format,
         schema_linking_hints,
+        schema_linking_max_tables,
+        schema_linking_max_columns,
     )
     ids = tokenizer.encode(text)[:context_length]
     sql_start = text.index("<sql>")
@@ -83,6 +91,8 @@ def make_batch(
     canonicalize_literals: bool = False,
     target_format: str = "sql",
     schema_linking_hints: bool = False,
+    schema_linking_max_tables: int = 5,
+    schema_linking_max_columns: int = 8,
 ) -> tuple[list[list[int]], list[list[bool]]]:
     encoded = [
         encode_record(
@@ -94,6 +104,8 @@ def make_batch(
             canonicalize_literals,
             target_format,
             schema_linking_hints,
+            schema_linking_max_tables,
+            schema_linking_max_columns,
         )
         for record in records
     ]
